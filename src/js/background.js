@@ -50,10 +50,16 @@ function download_image( img_url ) {
         filename = img_url_orig.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' ),
         download_link = d.createElement( 'a' );
     
+    /*
     download_link.href = img_url_orig;
     download_link.download = filename;
     //d.documentElement.appendChild( download_link );
     download_link.click();
+    */
+    chrome.downloads.download( {
+        url : img_url_orig
+    ,   filename : filename
+    } );
     
     log_debug( '*** download_image():', img_url, img_url_orig, filename );
 } // end of download_image()

@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.10
+// @version         0.1.7.11
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1337,6 +1337,7 @@ function initialize( user_options ) {
                 help_item_template_style.fontWeight = 'normal';
                 help_item_template_style.pointerEvents = 'auto';
                 help_item_template_style.cursor = 'pointer';
+                help_item_template_style.color = 'black';
                 
                 return help_item_template;
             } )(),
