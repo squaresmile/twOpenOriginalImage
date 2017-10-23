@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.11
+// @version         0.1.7.12
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -2756,8 +2756,16 @@ function initialize( user_options ) {
             if ( OPTIONS.OVERRIDE_CLICK_EVENT ) {
                 if ( gallery_media && ( ! is_tweetdeck() ) ) {
                     // TODO: ナビが覆いかぶさっている(z-index:1)ため、手前に出して画像クリックイベントの方を優先化しているが、もっとスマートな方法は無いか？
-                    gallery_media.style.zIndex = 10;
-                    gallery_media.style.pointerEvents = 'none';
+                    //gallery_media.style.zIndex = 10;
+                    //gallery_media.style.pointerEvents = 'none';
+                    // →この設定だと、.Gallery-media を上に持ってくると、.GalleryTweet が隠れてしまう(マウスオーバしても表示されない)
+                    
+                    // 画像クリック用に、前後(prev/next)移動用のクリック範囲を絞って、真ん中を開けておく
+                    gallery_media.style.cursor = 'pointer';
+                    var nav_next = gallery_media.parentNode.querySelector( '.GalleryNav--next' );
+                    if ( nav_next ) {
+                        nav_next.style.width = '33%'; // 67% → 33% (画像クリック用に真ん中を空けておく）
+                    }
                 }
                 
                 to_array( img_objects ).forEach( function ( img ) {
