@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.12
+// @version         0.1.7.13
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -2747,7 +2747,15 @@ function initialize( user_options ) {
                     }
                 }
                 else {
-                    action_list.appendChild( button_container );
+                    var action_more = action_list.querySelector( '.ProfileTweet-action--more' );
+                    
+                    if ( action_more ) {
+                        // 操作性のため、「その他」メニュー("float:right;"指定)よりも左側に挿入
+                        action_list.insertBefore( button_container, action_more );
+                    }
+                    else {
+                        action_list.appendChild( button_container );
+                    }
                 }
             } // end of insert_button()
             
