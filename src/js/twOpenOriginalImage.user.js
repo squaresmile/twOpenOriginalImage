@@ -2,13 +2,13 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.13
+// @version         0.1.7.14
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
 // @include         https://tweetdeck.twitter.com/*
-// @require         https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
-// @require         https://cdn.rawgit.com/eligrey/FileSaver.js/683f689326c231002164621dc8a6451df4e86e8a/FileSaver.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.4/jszip.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js
 // @grant           GM_xmlhttpRequest
 // @description     Open images in original size on Twitter.
 // ==/UserScript==
@@ -27,12 +27,13 @@
 
 ■ 外部ライブラリ
 - [JSZip](https://stuk.github.io/jszip/)
-    The MIT License
     Copyright (c) 2009-2014 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
+    The MIT License
     [jszip/LICENSE.markdown](https://github.com/Stuk/jszip/blob/master/LICENSE.markdown)
 
 - [eligrey/FileSaver.js: An HTML5 saveAs() FileSaver implementation](https://github.com/eligrey/FileSaver.js/)
     Copyright © 2015 Eli Grey.
+    The MIT License
     [FileSaver.js/LICENSE.md](https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md)
 */
 
@@ -501,6 +502,14 @@ function get_datetime_string_from_timestamp_ms( timestamp_ms ) {
 } // end of get_datetime_string_from_timestamp_ms()
 
 
+// TODO: zip.file() で date オプションを指定した際、ZIP のタイムスタンプがずれてしまう
+// => 暫定対応
+function adjust_date_for_zip( date ) {
+    // TODO: なぜかタイムスタンプに1秒前後の誤差が出てしまう
+    return new Date( date.getTime() - date.getTimezoneOffset() * 60000 );
+} // end of adjust_date_for_zip()
+
+
 var DragScroll = {
     is_dragging : false
 ,   element : null
@@ -684,6 +693,8 @@ function download_zip( tweet_info_json ) {
     var zip = new JSZip(),
         filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' ),
         timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url ),
+        date = new Date( parseInt( timestamp_ms, 10 ) ),
+        zipdate = adjust_date_for_zip( date ),
         datetime_string = get_datetime_string_from_timestamp_ms( timestamp_ms ),
         img_info_dict = {};
     
@@ -691,7 +702,9 @@ function download_zip( tweet_info_json ) {
         return false;
     }
     
-    zip.file( filename_prefix + '.url', '[InternetShortcut]\nURL=' + tweet_url + '\n' );
+    zip.file( filename_prefix + '.url', '[InternetShortcut]\nURL=' + tweet_url + '\n', {
+        date : zipdate
+    } );
     
     if ( fullname && username ) {
         zip.file( filename_prefix + '.txt', [
@@ -699,7 +712,9 @@ function download_zip( tweet_info_json ) {
         ,   tweet_url
         ,   title
         ,   img_urls.join( '\n' )
-        ].join( '\n\n' ) + '\n' );
+        ].join( '\n\n' ) + '\n', {
+            date : zipdate
+        } );
     }
     
     
@@ -754,7 +769,9 @@ function download_zip( tweet_info_json ) {
             if ( ! img_extension ) {
                 return;
             }
-            zip.file( img_filename, img_info.arrayBuffer );
+            zip.file( img_filename, img_info.arrayBuffer, {
+                date : zipdate
+            } );
         } );
         
         var zip_content_type = 'blob';
