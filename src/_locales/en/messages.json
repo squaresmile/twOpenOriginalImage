@@ -47,6 +47,9 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "Display image on click thumbnail of tweet"
     }
+,   "SWAP_IMAGE_URL" : {
+        "message" : "Replace images on  timeline with original-sized ones"
+    }
 ,   "DISPLAY_ORIGINAL_BUTTONS" : {
         "message" : "Display buttons"
     }

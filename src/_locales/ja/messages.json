@@ -47,6 +47,9 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "ツイート上のサムネイル画像クリックで開く"
     }
+,   "SWAP_IMAGE_URL" : {
+        "message" : "タイムライン上の画像を原寸画像に置換"
+    }
 ,   "DISPLAY_ORIGINAL_BUTTONS" : {
         "message" : "画像を開くボタンの表示"
     }

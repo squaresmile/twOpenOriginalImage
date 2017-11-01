@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.14
+// @version         0.1.7.15
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -86,6 +86,7 @@ var OPTIONS = {
 ,   OVERRIDE_GALLERY_FOR_TWEETDECK : true // true: TweetDeck のギャラリー(画像サムネイルクリック時のポップアップ)を置換(OVERRIDE_CLICK_EVENT true 時のみ有効)
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 ,   DOWNLOAD_ZIP_IS_VALID : true // true: ZIPダウンロード有効
+,   SWAP_IMAGE_URL : false // true: タイムラインの画像を orig 画像と差し替え
 
 ,   OPERATION : true // true: 動作中、false: 停止中
 
@@ -2648,6 +2649,9 @@ function initialize( user_options ) {
                         var img_url = get_img_url_orig( img.src );
                         
                         if ( ! /tweetdeck/.test( img_url ) ) {
+                            if ( OPTIONS.SWAP_IMAGE_URL ) {
+                                img.setAttribute( 'src', img_url );
+                            }
                             img_urls.push( img_url );
                         }
                     }
@@ -2656,6 +2660,9 @@ function initialize( user_options ) {
                         
                         if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                             img_url = get_img_url_orig( img_url );
+                            if ( OPTIONS.SWAP_IMAGE_URL ) {
+                                img.setAttribute( 'href', img_url );
+                            }
                             img_urls.push( img_url );
                         }
                     }

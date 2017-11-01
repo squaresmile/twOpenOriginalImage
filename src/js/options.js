@@ -9,6 +9,7 @@ $().ready( function () {
         ,   { key : 'DISPLAY_ORIGINAL_BUTTONS', val : true }
         ,   { key : 'OVERRIDE_GALLERY_FOR_TWEETDECK', val : true }
         ,   { key : 'DOWNLOAD_HELPER_SCRIPT_IS_VALID', val : true }
+        ,   { key : 'SWAP_IMAGE_URL', val : false }
         ],
         INT_KV_LIST = [
             //{ key : 'WAIT_AFTER_OPENPAGE', val : 500, min : 0, max : null }

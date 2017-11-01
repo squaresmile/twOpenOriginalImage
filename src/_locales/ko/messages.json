@@ -47,6 +47,9 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "썸네일을 클릭하여 열기"
     }
+,   "SWAP_IMAGE_URL" : {
+        "message" : "타임 라인의 이미지를 원본 크기의 이미지로 교체하십시오"
+    }
 ,   "DISPLAY_ORIGINAL_BUTTONS" : {
         "message" : "이미지 보기 버튼 표시"
     }
