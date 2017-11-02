@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.16
+// @version         0.1.7.17
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1390,6 +1390,12 @@ function initialize( user_options ) {
                 download_frame_style.width = '0';
                 download_frame_style.height = '0';
                 download_frame_style.visibility = 'hidden';
+                
+                // TweetDeck で、ダウンロードを行うと下部に隙間ができる（縦スクロールバーが表示されてしまう）不具合への対策
+                download_frame_style.position = 'absolute';
+                download_frame_style.top = '0';
+                download_frame_style.left = '0';
+                download_frame_style.pointerEvents = 'none';
                 
                 return download_frame_template;
             } )(),
