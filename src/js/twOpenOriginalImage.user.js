@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.15
+// @version         0.1.7.16
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -849,7 +849,8 @@ function initialize_download_helper() {
     }
     
     var img_url = w.location.href,
-        is_child = /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( d.referrer ),
+        img_referrer = d.referrer,
+        is_child = /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( img_referrer ),
         link = ( is_ie() ) ? null : create_download_link( img_url );
     
     if ( link && is_child ) {
@@ -870,7 +871,7 @@ function initialize_download_helper() {
         try {
             var tweet_info_json = decodeURIComponent( w.name );
             
-            if ( /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( d.referrer ) && download_zip( tweet_info_json ) ) {
+            if ( is_child && download_zip( tweet_info_json ) ) {
                 return true;
             }
         }
@@ -911,7 +912,18 @@ function initialize_download_helper() {
         return;
     }
     
-    // 通常の window(top) として開いた場合、もしくは本スクリプトにより window.open() で開いた場合
+    // ※ 以下、通常の window(top) として開いた場合、もしくは本スクリプトにより window.open() で開いた場合
+    
+    if ( ( ! img_referrer ) || ( get_img_url( img_url ) !== get_img_url( img_referrer ) ) ) {
+        // 画像単体で開いた場合、もしくは画像以外のページからの遷移時→デフォルトで原寸画像(:orig)を開く
+        var orig_url = get_img_url( img_url, 'orig' );
+        
+        if ( img_url != orig_url ) {
+            w.location.replace( orig_url );
+            return;
+        }
+    }
+    
     var link_container = d.createElement( 'div' ),
         link_container_style = link_container.style,
         kind_list = [ 'thumb', 'small', 'medium', 'large', 'orig' ],
@@ -1409,7 +1421,7 @@ function initialize( user_options ) {
                         image_overlay_container_style.right = 0;
                         image_overlay_container_style.overflow = 'auto';
                         image_overlay_container_style.zIndex = 10000;
-                        image_overlay_container_style.padding = top_offset + 'px 0 32px 0';
+                        image_overlay_container_style.padding = top_offset + 'px 0 0 0';
                         image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
                         
                         image_overlay_container.appendChild( image_overlay_image_container );
@@ -2326,9 +2338,15 @@ function initialize( user_options ) {
                     }
                     
                     var first_element_top_offset = parseInt( getComputedStyle( image_overlay_container ).paddingTop ) + get_element_position( first_image ).y - get_element_position( image_overlay_image_container ).y,
-                        maxHeight = w.innerHeight - first_element_top_offset - 20 // TODO: スクロールバーの幅分を自動で調整したい
+                        maxHeight = w.innerHeight - first_element_top_offset - 20, // TODO: スクロールバーの幅分を自動で調整したい
+                        image_list = to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) );
                     
-                    to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
+                    if ( image_list.length == 1 ) {
+                        // 高さを調節しても縦スクロールバーが出てしまうことがあるので強制的に隠す
+                        image_overlay_container.style.overflowY = 'hidden';
+                    }
+                    
+                    image_list.forEach( function ( img ) {
                         img.style.maxHeight = maxHeight + 'px';
                     } );
                     
@@ -2360,6 +2378,8 @@ function initialize( user_options ) {
                 function change_size( next_size ) {
                     var width_max = 0,
                         all_image_loaded = true;
+                    
+                    image_overlay_container.style.overflowY = 'auto';
                     
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
                         if ( ! img.naturalWidth ) {
