@@ -44,18 +44,27 @@ function update_context_menu_flags() {
 } // end of update_context_menu_flags()
 
 
+function get_filename_from_image_url( img_url ) {
+    if ( ! /:\w*$/.test( img_url ) ) {
+        return null;
+    }
+    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+} // end of get_filename_from_image_url()
+
 
 function download_image( img_url ) {
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
-        filename = img_url_orig.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' ),
+        filename = get_filename_from_image_url( img_url_orig ),
         download_link = d.createElement( 'a' );
-    
+
     /*
     download_link.href = img_url_orig;
     download_link.download = filename;
     //d.documentElement.appendChild( download_link );
     download_link.click();
     */
+    // 覚書：「Download with Free Download Manager (FDM)」を使っていると、ここで指定したファイル名が無視される
+    // → DeterminingFilename イベントを監視し、そこでファイル名を指定するように修正
     chrome.downloads.download( {
         url : img_url_orig
     ,   filename : filename
@@ -63,6 +72,30 @@ function download_image( img_url ) {
     
     log_debug( '*** download_image():', img_url, img_url_orig, filename );
 } // end of download_image()
+
+
+function on_determining_filename( downloadItem, suggest ) {
+    update_context_menu_flags();
+    
+    if ( ( ! CONTEXT_MENU_IS_VISIBLE ) || CONTEXT_MENU_IS_SUSPENDED ) {
+        return;
+    }
+    if ( downloadItem.byExtensionId != chrome.runtime.id ) {
+        // 本拡張機能以外から保存した場合は無視
+        // ※この判定を無効化すれば、コンテキストメニューから「名前を付けて画像を保存」した場合も、http://～/xxx.jpg:kind → xxx-kind.jpg に変換される
+        return;
+    }
+    
+    var url = downloadItem.finalUrl || downloadItem.url;
+    
+    if ( ! /^https?:\/\/pbs\.twimg\.com\/media\/[^:]+:\w*$/.test( url ) ) {
+        return;
+    }
+    
+    suggest( {
+        filename : get_filename_from_image_url( url )
+    } );
+} // end of on_determining_filename()
 
 
 function initialize( eventname ) {
@@ -205,6 +238,9 @@ chrome.runtime.onStartup.addListener( on_startup );
 
 // Installed イベント
 chrome.runtime.onInstalled.addListener( on_installed );
+
+// DeterminingFilename イベント
+chrome.downloads.onDeterminingFilename.addListener( on_determining_filename );
 
 } )( window, document );
 
