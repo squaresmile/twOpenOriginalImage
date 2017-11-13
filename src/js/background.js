@@ -54,22 +54,51 @@ function get_filename_from_image_url( img_url ) {
 
 function download_image( img_url ) {
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
-        filename = get_filename_from_image_url( img_url_orig ),
-        download_link = d.createElement( 'a' );
-
-    /*
-    download_link.href = img_url_orig;
-    download_link.download = filename;
-    //d.documentElement.appendChild( download_link );
-    download_link.click();
-    */
-    // 覚書：「Download with Free Download Manager (FDM)」を使っていると、ここで指定したファイル名が無視される
-    // → DeterminingFilename イベントを監視し、そこでファイル名を指定するように修正
-    chrome.downloads.download( {
-        url : img_url_orig
-    ,   filename : filename
-    } );
+        filename = get_filename_from_image_url( img_url_orig );
     
+    // ある時点から、ファイル名が変わらなくなった(0.1.7.1000で2017年7月末頃発生)
+    //var download_link = d.createElement( 'a' );
+    //download_link.href = img_url_orig;
+    //download_link.download = filename;
+    //d.documentElement.appendChild( download_link );
+    //download_link.click();
+    
+    // 覚書：「Download with Free Download Manager (FDM)」等を使っていると、ここで指定したファイル名が無視される
+    // → DeterminingFilename イベントを監視し、そこでファイル名を指定するように修正(0.1.7.1701)
+    // → イベント監視だと、他の拡張機能との競合が発生するため、別の方法を検討(0.1.7.1702)
+    //chrome.downloads.download( {
+    //    url : img_url_orig
+    //,   filename : filename
+    //} );
+    
+    var xhr = new XMLHttpRequest();
+    
+    xhr.open( 'GET', img_url_orig, true );
+    xhr.responseType = 'blob';
+    xhr.onload = function () {
+        if ( xhr.readyState != 4 ) {
+            return;
+        }
+        var blob = xhr.response,
+            download_link = d.createElement( 'a' );
+        
+        download_link.href = URL.createObjectURL( blob );
+        download_link.download = filename;
+        
+        d.documentElement.appendChild( download_link );
+        
+        download_link.click();
+        
+        download_link.parentNode.removeChild( download_link );
+    };
+    xhr.onerror = function () {
+        chrome.downloads.download( {
+            url : img_url_orig
+        ,   filename : filename
+        } );
+    };
+    xhr.send();
+
     log_debug( '*** download_image():', img_url, img_url_orig, filename );
 } // end of download_image()
 
@@ -78,23 +107,24 @@ function on_determining_filename( downloadItem, suggest ) {
     update_context_menu_flags();
     
     if ( ( ! CONTEXT_MENU_IS_VISIBLE ) || CONTEXT_MENU_IS_SUSPENDED ) {
-        return;
+        return true;
     }
     if ( downloadItem.byExtensionId != chrome.runtime.id ) {
         // 本拡張機能以外から保存した場合は無視
         // ※この判定を無効化すれば、コンテキストメニューから「名前を付けて画像を保存」した場合も、http://～/xxx.jpg:kind → xxx-kind.jpg に変換される
-        return;
+        return true;
     }
     
     var url = downloadItem.finalUrl || downloadItem.url;
     
     if ( ! /^https?:\/\/pbs\.twimg\.com\/media\/[^:]+:\w*$/.test( url ) ) {
-        return;
+        return true;
     }
     
     suggest( {
         filename : get_filename_from_image_url( url )
     } );
+    return true;
 } // end of on_determining_filename()
 
 
@@ -240,7 +270,8 @@ chrome.runtime.onStartup.addListener( on_startup );
 chrome.runtime.onInstalled.addListener( on_installed );
 
 // DeterminingFilename イベント
-chrome.downloads.onDeterminingFilename.addListener( on_determining_filename );
+// TODO: 副作用（他拡張機能との競合）が大きいため、保留(0.1.7.1702)
+//chrome.downloads.onDeterminingFilename.addListener( on_determining_filename );
 
 } )( window, document );
 
