@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.17
+// @version         0.1.7.18
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -721,10 +721,10 @@ function download_zip( tweet_info_json ) {
     
     function save_blob( filename, blob ) {
         function _save() {
-            var blobURL = URL.createObjectURL( blob ),
+            var blob_url = URL.createObjectURL( blob ),
                 download_button = document.createElement( 'a' );
             
-            download_button.href = blobURL;
+            download_button.href = blob_url;
             download_button.download = filename;
             
             document.documentElement.appendChild( download_button );
@@ -747,6 +747,22 @@ function download_zip( tweet_info_json ) {
             _save();
         }
     } // end of save_blob()
+    
+    
+    function save_base64( filename, base64, mimetype ) {
+        var mimetype = ( mimetype ) ? mimetype : 'application/octet-stream',
+            data_url = 'data:' + mimetype + ';base64,' + base64,
+            download_button = d.createElement( 'a' );
+        
+        download_button.href = data_url;
+        download_button.download = filename;
+        
+        d.documentElement.appendChild( download_button );
+        
+        download_button.click();
+        
+        download_button.parentNode.removeChild( download_button );
+    } // end of save_base64()
     
     
     function add_img_info( img_url, arrayBuffer ) {
@@ -775,14 +791,22 @@ function download_zip( tweet_info_json ) {
             } );
         } );
         
-        var zip_content_type = 'blob';
+        var zip_content_type = ( is_firefox() ) ? 'base64' : 'blob';
             // ※ JSZip 自体は 'base64' 等もサポートしている [generateAsync(options[, onUpdate])](https://stuk.github.io/jszip/documentation/api_jszip/generate_async.html)
             // ※ 'base64' の場合、'data:application/zip;base64,' + zip_content でデータ URL を作成できるが、これでダウンロードすると、 Chrome ではセキュリティの警告が出て削除されてしまう
+            
+            // TODO: ZIP を保存しようとすると、Firefox でセキュリティ警告が出る場合がある（「このファイルを開くのは危険です」(This file is not commonly downloaded.)）
+            // → Firefox のみ、Blob URL ではなく、Data URL(Base64) で様子見
         
         zip.generateAsync( { type : zip_content_type } ).then( function ( zip_content ) {
             var zip_filename = filename_prefix + '.zip';
             
-            save_blob( zip_filename, zip_content );
+            if ( zip_content_type == 'base64' ) {
+                save_base64( zip_filename, zip_content );
+            }
+            else {
+                save_blob( zip_filename, zip_content );
+            }
             
             if ( w.opener && ( w === top ) ) {
                 setTimeout( function () {
@@ -955,6 +979,10 @@ function initialize_download_helper() {
         
         add_event( d.body, 'keydown', function ( event ) {
             var key_code = event.keyCode;
+            
+            if ( event.ctrlKey || event.altKey || event.shiftKey ) {
+                return false;
+            }
             
             switch ( key_code ) {
                 case 68 : // [d]
