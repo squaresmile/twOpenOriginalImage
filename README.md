@@ -20,13 +20,14 @@ Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.
 
 
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
-Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonkey/)、Google Chrome＋[Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja)、あるいは Opera＋[Tampermonkey](https://addons.opera.com/ja/extensions/details/tampermonkey-beta/?display=en)の環境で、  
+Firefox＋<s>[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonkey/)</s>[Tampermonkey](https://addons.mozilla.org/ja/firefox/addon/tampermonkey/)、Google Chrome＋[Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja)、あるいは Opera＋[Tampermonkey](https://addons.opera.com/ja/extensions/details/tampermonkey-beta/?display=en)の環境で、  
 
 > [Twitter 原寸びゅー(twOpenOriginalImage.user.js)](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twOpenOriginalImage.user.js)  
                                 
 をクリックし、指示に従ってインストール。  
 
 ※ 0.1.3.0 以降は、ダウンロードヘルパー機能も原寸びゅーに集約済み。これより前に画像ダウンロードヘルパーをインストールしていた場合、当該スクリプト（twImageDownloadHelper.user）は削除しておくこと。  
+※ Firefox では Quantum(57) + Greasemonkey 4 より動作しなくなった（代わりに Tampermonkey を使用すること）。  
 
 
 ■ 使い方
