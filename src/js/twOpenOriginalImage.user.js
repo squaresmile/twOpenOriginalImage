@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.18
+// @version         0.1.7.19
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -73,6 +73,10 @@ if ( w[ SCRIPT_NAME + '_touched' ] ) {
 }
 w[ SCRIPT_NAME + '_touched' ] = true;
 
+if ( /^https:\/\/twitter\.com\/i\//.test( w.location.href ) ) {
+    // https://twitter.com/i/cards/～ 等では実行しない
+    return;
+}
 
 // ■ パラメータ
 var OPTIONS = {
@@ -212,6 +216,46 @@ var is_mac = ( function () {
         return flag;
     };
 } )(); // end of is_mac()
+
+
+var is_edge = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'edge' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_edge()
+
+
+var is_arraybuffer_bug = ( function () {
+    if ( ! is_edge() ) {
+        return function () {
+            return false;
+        };
+    }
+    
+    try {
+        // TODO: MS-Edge (Microsoft Edge 41.16299.15.0/Microsoft EdgeHTML 16.16299) の拡張機能で、ZIP ダウンロード不可。
+        
+        // MS-Edge の拡張機能内では、fetch() を使用したり、XMLHttpRequest で xhr.responseType を 'arraybuffer' にして、xhr.response を得ようとすると
+        // 「SCRIPT65535: 未定義のエラーです。」となってしまう(Microsoft Edge 41.16299.15.0/Microsoft EdgeHTML 16.16299)
+        // ※ 参考： [Fetch API in Extension SCRIPT65535 error - Microsoft Edge Development](https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/14192157/)
+        // xhr.responseType = 'blob' なら通るので、Blob で受けてから ArrayBuffer に変換後に JSZip に渡したが、これも内部でエラー発生
+        fetch( 'https://pbs.twimg.com/profile_images/318199851/kaze2_mini.png' ).then( function ( response ) {
+            return response.arrayBuffer();
+        } );
+        
+        return function () {
+            return false;
+        };
+    }
+    catch ( error ) {
+        console.error( 'Some bugs in MS-Edge Extension' );
+        return function () {
+            return true;
+        };
+    }
+} )(); // end of is_arraybuffer_bug()
 
 
 var is_bookmarklet = ( function () {
@@ -1137,7 +1181,7 @@ function initialize( user_options ) {
         OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID = false;
     }
     
-    if ( typeof JSZip != 'function' ) {
+    if ( ( typeof JSZip != 'function' ) || is_arraybuffer_bug() ) {
         OPTIONS.DOWNLOAD_ZIP_IS_VALID = false;
     }
     
@@ -1750,6 +1794,9 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_download_image_zip() {
+                            if ( is_arraybuffer_bug() ) {
+                                return;
+                            }
                             var tweet_url = image_overlay_close_link.href,
                                 //img_urls = to_array( image_overlay_container.querySelectorAll( '.image-link-container .download-link' ) ).map( function ( download_link ) {
                                 //    return download_link.href;

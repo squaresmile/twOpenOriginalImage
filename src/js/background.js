@@ -2,8 +2,11 @@
 
 'use strict';
 
-var DEBUG = false,
+w.chrome = ( ( typeof browser != 'undefined' ) && browser.runtime ) ? browser : chrome;
 
+
+var DEBUG = false,
+    
     CONTEXT_MENU_INITIALIZED = false,
     CONTEXT_MENU_IS_VISIBLE = true,
     CONTEXT_MENU_IS_SUSPENDED = false,
@@ -17,6 +20,24 @@ function log_debug() {
     }
     console.log.apply( console, arguments );
 } // end of log_debug()
+
+
+var is_firefox = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_firefox()
+
+
+var is_edge = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'edge' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_edge()
 
 
 function get_bool( value ) {
@@ -79,6 +100,7 @@ function download_image( img_url ) {
         if ( xhr.readyState != 4 ) {
             return;
         }
+        
         var blob = xhr.response,
             download_link = d.createElement( 'a' );
         
@@ -88,6 +110,8 @@ function download_image( img_url ) {
         d.documentElement.appendChild( download_link );
         
         download_link.click();
+        // TODO: MS-Edge 拡張機能の場合、ダウンロードされない
+        // TODO: Firefox WebExtension の場合、XMLHttpRequest を使うと PNG がうまくダウンロードできない場合がある
         
         download_link.parentNode.removeChild( download_link );
     };
@@ -130,6 +154,26 @@ function on_determining_filename( downloadItem, suggest ) {
 
 function initialize( eventname ) {
     log_debug( '*** initialize():', eventname );
+    
+    if ( is_edge() ) {
+        // TODO: MS-Edge の拡張機能だと、background スクリプトからのダウンロードが出来ない(?)
+        //   参考： [Extensions - Supported APIs - Microsoft Edge Development | Microsoft Docs](https://docs.microsoft.com/en-us/microsoft-edge/extensions/api-support/supported-apis)
+        //   | ・Triggering a download via a hidden anchor tag will fail from background scripts. This should be done from an extension page instead.
+        //
+        // ・browser.downloads API が存在しない(2017/04/11現在のロードマップで、"Under consideration" になっている
+        //   [Extensions - Extension API roadmap - Microsoft Edge Development | Microsoft Docs](https://docs.microsoft.com/en-us/microsoft-edge/extensions/api-support/extension-api-roadmap)
+        //   | downloads | Used to programmatically initiate, monitor, manipulate, and search for downloads. | Under consideration
+        //
+        // ・XMLHttpRequest で取得した Blob を URL.createObjectURL() で変換したものを download 属性付 A タグの href にセットしてクリックしてもダウンロードされない
+        //
+        // ・navigator.msSaveOrOpenBlob() 等も使えない
+        //   ※「SCRIPT16386: SCRIPT16386: インターフェイスがサポートされていません」のようなエラーになる
+        //
+        // ・tabs.create() で新たにタブを開いた場合も、background から開いたときは上記の不具合が継承される模様
+        
+        chrome.contextMenus.remove( DOWNLOAD_MENU_ID );
+        return;
+    }
     
     var title = chrome.i18n.getMessage( 'DOWNLOAD_ORIGINAL_IMAGE' );
     
@@ -263,11 +307,13 @@ chrome.runtime.onMessage.addListener( on_message );
 // クリックイベント(コンテキストメニュー)
 chrome.contextMenus.onClicked.addListener( on_click );
 
-// Startup イベント
-chrome.runtime.onStartup.addListener( on_startup );
-
 // Installed イベント
 chrome.runtime.onInstalled.addListener( on_installed );
+
+// Startup イベント
+if ( chrome.runtime.onStartup ) {
+    chrome.runtime.onStartup.addListener( on_startup );
+}
 
 // DeterminingFilename イベント
 // TODO: 副作用（他拡張機能との競合）が大きいため、保留(0.1.7.1702)

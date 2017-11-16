@@ -1,5 +1,19 @@
 ( function ( w, d ) {
 
+'use strict';
+
+w.chrome = ( ( typeof browser != 'undefined' ) && browser.runtime ) ? browser : chrome;
+
+
+var is_edge = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'edge' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_edge()
+
+
 $().ready( function () {
     var RADIO_KV_LIST = [
             { key : 'ENABLED_ON_TWEETDECK', val : true }
@@ -31,7 +45,7 @@ $().ready( function () {
             return;
         }
         if ( ( value == 'OPTIONS' ) && ( jq_elm.parent().prop( 'tagName' ) == 'H1' ) ) {
-            text += ' ( version ' + chrome.app.getDetails().version + ' )';
+            text += ' ( version ' + chrome.runtime.getManifest().version + ' )';
         }
         if ( jq_elm.val() ) {
             jq_elm.val( text );
@@ -186,7 +200,8 @@ $().ready( function () {
         
         function set_operation( next_operation ) {
             var button_text = ( next_operation ) ? ( chrome.i18n.getMessage( 'STOP' ) ) : ( chrome.i18n.getMessage( 'START' ) ),
-                icon_path = ( next_operation) ? ( '../img/icon_48.png' ) : ( '../img/icon_48-gray.png' );
+                path_to_img = ( is_edge() ) ? 'img' : '../img', // TODO: MS-Edge の場合、options.html からの相対パスになっていない（manifest.jsonからの相対パス？）
+                icon_path = ( next_operation ) ? ( path_to_img + '/icon_48.png' ) : ( path_to_img + '/icon_48-gray.png' );
             
             jq_operation.val( button_text );
             chrome.browserAction.setIcon( { path : icon_path } );
