@@ -3,7 +3,7 @@ Twitter 原寸びゅー (twOpenOriginalImage)
 
 - License: The MIT license  
 - Copyright (c) 2016 風柳(furyu)  
-- 対象ブラウザ： Google Chrome、Firefox、Opera
+- 対象ブラウザ： Google Chrome、Firefox、Vivaldi、Opera
 
 [Web 版公式 Twitter](https://twitter.com/) ／ [TweetDeck](https://tweetdeck.twitter.com/) のツイートの画像を、原寸（URLが '～:orig' のもの）で開くボタンを付けるスクリプト。  
 画像のダウンロード支援スクリプト（ダウンロードされる拡張子を '～.jpg-orig' 等から、'～-orig.jpg' のように変換）もあり。  
@@ -12,11 +12,19 @@ Twitter 原寸びゅー (twOpenOriginalImage)
 ■ インストール方法 
 ---
 ### Google Chrome 拡張機能版
-Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.opera.com/ja/extensions/details/download-chrome-extension-9/?display=en)の環境で、
+Google Chrome、Vivaldi、あるいは Opera＋[Download Chrome Extension](https://addons.opera.com/ja/extensions/details/download-chrome-extension-9/?display=en)の環境で、
 
 > [Twitter 原寸びゅー](https://chrome.google.com/webstore/detail/twitter-%E5%8E%9F%E5%AF%B8%E3%81%B3%E3%82%85%E3%83%BC/bkpaljhmpehdbjkoahohlhkhlleaicel)
 
 より拡張機能を追加する。  
+
+
+### Firefox Quantum (WebExtentions)版  
+Firefox Quantum で、  
+
+> [Twitter 原寸びゅー – Firefox 向けアドオン](https://addons.mozilla.org/ja/firefox/addon/twitter-gensun-view/)
+
+よりアドオンを追加する。  
 
 
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）

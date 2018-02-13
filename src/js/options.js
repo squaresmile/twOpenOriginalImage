@@ -195,8 +195,9 @@ $().ready( function () {
     
     function set_operation_evt() {
         var jq_operation = $( 'input[name="OPERATION"]' ),
-            operation = get_bool( localStorage[ 'OPERATION' ] ),
-            operation = ( operation === null ) ? true : operation; // デフォルトは true (動作中)
+            operation = get_bool( localStorage[ 'OPERATION' ] );
+        
+        operation = ( operation === null ) ? true : operation; // デフォルトは true (動作中)
         
         function set_operation( next_operation ) {
             var button_text = ( next_operation ) ? ( chrome.i18n.getMessage( 'STOP' ) ) : ( chrome.i18n.getMessage( 'START' ) ),

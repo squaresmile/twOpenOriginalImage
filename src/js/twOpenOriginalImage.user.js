@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.19
+// @version         0.1.7.20
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -73,8 +73,8 @@ if ( w[ SCRIPT_NAME + '_touched' ] ) {
 }
 w[ SCRIPT_NAME + '_touched' ] = true;
 
-if ( /^https:\/\/twitter\.com\/i\//.test( w.location.href ) ) {
-    // https://twitter.com/i/cards/～ 等では実行しない
+if ( /^https:\/\/twitter\.com\/i\/cards/.test( w.location.href ) ) {
+    // https://twitter.com/i/cards/～ では実行しない
     return;
 }
 
@@ -102,13 +102,14 @@ var OPTIONS = {
 ,   SCROLL_STEP : 100 // オーバーレイ表示時の[↑][↓]によるスクロール単位(pixel)
 ,   SMOOTH_SCROLL_STEP : 100 // オーバーレイ表示時のスムーズスクロール単位(pixel)
 ,   SMOOTH_SCROLL_INTERVAL : 10 // オーバーレイ表示時のスムーズスクロールの間隔(ms)
-,   DEFAULT_IMAGE_SIZE : 'fit-width' // オーバーレイ表示時の画像幅初期値 ( 'full' / 'fit-width' / 'fit-height' )
+,   DEFAULT_IMAGE_SIZE : 'fit-width' // オーバーレイ表示時の画像幅初期値 ( 'full' / 'fit-width' / 'fit-height' / 'fit-window' )
 ,   DEFAULT_IMAGE_BACKGROUND_COLOR : 'black' // オーバーレイ表示時の画像背景色初期値 ('black' または 'white')
 };
 
 
 // 共通変数
-var LANGUAGE = ( function () {
+var DEBUG = false,
+    LANGUAGE = ( function () {
     try{
         return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
     }
@@ -125,7 +126,7 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_TEXT = '原寸画像';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
-        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
+        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'ダウンロード';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【' + SCRIPT_NAME_JA + '】';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]次の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]前の画像';
@@ -135,6 +136,7 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FULL = '原寸';
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH = '幅調節';
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT = '高さ調節';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WINDOW = '全体表示';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = '黒';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = '白';
@@ -156,6 +158,7 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FULL = 'full';
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH = 'fit-width';
         OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT = 'fit-height';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WINDOW = 'fit-window';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]bgcolor:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = 'black';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = 'white';
@@ -168,15 +171,48 @@ function to_array( array_like_object ) {
 } // end of to_array()
 
 
+if ( typeof console.log.apply == 'undefined' ) {
+    // MS-Edge 拡張機能では console.log.apply 等が undefined
+    // → apply できるようにパッチをあてる
+    // ※参考：[javascript - console.log.apply not working in IE9 - Stack Overflow](https://stackoverflow.com/questions/5538972/console-log-apply-not-working-in-ie9)
+    
+    [ 'log', 'info', 'warn', 'error', 'assert', 'dir', 'clear', 'profile', 'profileEnd' ].forEach( function ( method ) {
+        console[ method ] = this.bind( console[ method ], console );
+    }, Function.prototype.call );
+    
+    console.log( 'note: console.log.apply is undefined => patched' );
+}
+
+
+function log_debug() {
+    if ( ! DEBUG ) {
+        return;
+    }
+    var arg_list = [ '[' + SCRIPT_NAME + ']', '(' + ( new Date().toISOString() ) + ')' ];
+    
+    console.log.apply( console, arg_list.concat( to_array( arguments ) ) );
+} // end of log_debug()
+
+
+function log_error() {
+    var arg_list = [ '[' + SCRIPT_NAME + ']', '(' + ( new Date().toISOString() ) + ')' ];
+    
+    console.error.apply( console, arg_list.concat( to_array( arguments ) ) );
+} // end of log_error()
+
+
 var object_extender = ( function () {
+    // 参考: [newを封印して、JavaScriptでオブジェクト指向する(1): Architect Note](http://blog.tojiru.net/article/199670885.html?seesaa_related=related_article)
     function object_extender( base_object ) {
         var template = object_extender.template,
-            base_object = template.prototype = base_object,
-            expanded_object = new template(),
-            object_list = to_array( arguments );
+            mixin_object_list = Array.prototype.slice.call( arguments, 1 ),
+            expanded_object;
         
-        object_list.shift();
-        object_list.forEach( function ( object ) {
+        template.prototype = base_object;
+        
+        expanded_object = new template();
+        
+        mixin_object_list.forEach( function ( object ) {
             Object.keys( object ).forEach( function ( name ) {
                 expanded_object[ name ] = object[ name ];
             } );
@@ -184,6 +220,7 @@ var object_extender = ( function () {
         
         return expanded_object;
     } // end of object_extender()
+    
     
     object_extender.template = function () {};
     
@@ -250,7 +287,7 @@ var is_arraybuffer_bug = ( function () {
         };
     }
     catch ( error ) {
-        console.error( 'Some bugs in MS-Edge Extension' );
+        log_error( 'Some bugs in MS-Edge Extension' );
         return function () {
             return true;
         };
@@ -274,6 +311,22 @@ var is_tweetdeck = ( function () {
         return flag;
     };
 } )(); // end of is_tweetdeck()
+
+
+function is_night_mode() {
+    var html_elem = d.querySelector( 'html' );
+    
+    if ( html_elem.classList.contains( 'night_mode' ) || html_elem.classList.contains( 'dark' ) ) {
+        return true;
+    }
+    
+    var nightmode_icon = d.querySelector( '#user-dropdown .js-nightmode-icon' );
+    if ( ! nightmode_icon ) {
+        return false;
+    }
+    
+    return nightmode_icon.classList.contains( 'Icon--crescentFilled' );
+} // end of is_night_mode()
 
 
 function has_some_classes( node, class_list ) {
@@ -405,20 +458,24 @@ function get_mouse_position( event ) {
 } // end of get_mouse_position()
 
 
-var event_functions = ( function() {
-    var event_dict = {};
+var event_functions = object_extender( {
+    event_dict : {},
+    
+    binded_object : null,
     
     
-    function add_event( target, event_name, event_function, for_storage ) {
+    add_event : function ( target, event_name, event_function, for_storage ) {
+        var self = this,
+            event_dict = self.event_dict,
+            binded_object = self.binded_object;
+        
         if ( ! for_storage ) {
             target.addEventListener( event_name, event_function, false );
-            return;
+            return self;
         }
         
-        var self = this;
-        
         function _event_function() {
-            event_function.apply( self, arguments );
+            event_function.apply( ( ( binded_object ) ? binded_object : w ), arguments );
         } // end of _event_function()
         
         target.addEventListener( event_name, _event_function, false );
@@ -434,11 +491,14 @@ var event_functions = ( function() {
         ,   event_function : event_function
         ,   _event_function : _event_function
         } );
-    } // end of add_event()
+
+        return self;
+    }, // end of add_event()
     
     
-    function remove_event( target, event_name, event_function ) {
+    remove_event : function ( target, event_name, event_function ) {
         var self = this,
+            event_dict = self.event_dict,
             event_items = event_dict[ event_name ],
             is_found = false;
         
@@ -456,23 +516,35 @@ var event_functions = ( function() {
         if ( ! is_found && event_function ) {
             target.removeEventListener( event_name, event_function, false );
         }
-    } // end of remove_event()
+        
+        return self;
+    }, // end of remove_event()
     
     
-    return {
-        add_event : add_event
-    ,   remove_event : remove_event
-    };
-} )();
+    bind_object : function ( target_object ) {
+        var self = this;
+        
+        self.binded_object = target_object;
+        
+        return self;
+    }, // end of bind_object()
+} );
 
 
-var add_event = event_functions.add_event,
-    remove_event = event_functions.remove_event;
+function add_event() {
+    return event_functions.bind_object( this ).add_event.apply( event_functions, arguments );
+} // end of add_event()
+
+
+function remove_event() {
+    return event_functions.bind_object( this ).remove_event.apply( event_functions, arguments );
+} // end of add_event()
 
 
 function get_img_extension( img_url, extension_list ) {
-    var extension = '',
-        extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
+    var extension = '';
+    
+    extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
     
     if ( img_url.match( new RegExp( '\.(' + extension_list.join('|') + ')' ) ) ) {
         extension = RegExp.$1;
@@ -680,6 +752,7 @@ var create_download_link = ( function () {
     link_style.border = 'solid 2px';
     link_style.borderRadius = '3px';
     link_style.minWidth = '90px';
+    link_style.textAlign = 'center';
     
     function create_download_link( img_url, doc ) {
         if ( ! doc ) {
@@ -717,15 +790,24 @@ var create_download_link = ( function () {
 
 
 function download_zip( tweet_info_json ) {
+    var tweet_info,
+        tweet_url,
+        title,
+        fullname,
+        username,
+        timestamp_ms,
+        img_urls;
+    
     try {
-        var tweet_info = JSON.parse( tweet_info_json ),
-            tweet_url = tweet_info.url,
-            tweet_url = /^http/.test( tweet_url ) ? tweet_url : 'https://twitter.com' + tweet_url,
-            title = ( tweet_info.title ) ? tweet_info.title : '',
-            fullname = tweet_info.fullname.trim(),
-            username = tweet_info.username.trim(),
-            timestamp_ms = tweet_info.timestamp_ms,
-            img_urls = tweet_info.img_urls;
+        tweet_info = JSON.parse( tweet_info_json );
+        tweet_url = tweet_info.url;
+        title = ( tweet_info.title ) ? tweet_info.title : '';
+        fullname = tweet_info.fullname.trim();
+        username = tweet_info.username.trim();
+        timestamp_ms = tweet_info.timestamp_ms;
+        img_urls = tweet_info.img_urls;
+        
+        tweet_url = /^http/.test( tweet_url ) ? tweet_url : 'https://twitter.com' + tweet_url;
         
         if ( ( ! tweet_url ) || ( ! img_urls ) || ( img_urls.length <= 0 ) ) {
             return false;
@@ -736,9 +818,11 @@ function download_zip( tweet_info_json ) {
     }
     
     var zip = new JSZip(),
-        filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' ),
-        timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url ),
-        date = new Date( parseInt( timestamp_ms, 10 ) ),
+        filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
+    
+    timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url );
+    
+    var date = new Date( parseInt( timestamp_ms, 10 ) ),
         zipdate = adjust_date_for_zip( date ),
         datetime_string = get_datetime_string_from_timestamp_ms( timestamp_ms ),
         img_info_dict = {};
@@ -766,12 +850,12 @@ function download_zip( tweet_info_json ) {
     function save_blob( filename, blob ) {
         function _save() {
             var blob_url = URL.createObjectURL( blob ),
-                download_button = document.createElement( 'a' );
+                download_button = d.createElement( 'a' );
             
             download_button.href = blob_url;
             download_button.download = filename;
             
-            document.documentElement.appendChild( download_button );
+            d.documentElement.appendChild( download_button );
             
             download_button.click();
             
@@ -783,7 +867,7 @@ function download_zip( tweet_info_json ) {
                 saveAs( blob, filename );
             }
             catch ( error ) {
-                //console.error( error );
+                //log_error( error );
                 _save();
             }
         }
@@ -794,8 +878,9 @@ function download_zip( tweet_info_json ) {
     
     
     function save_base64( filename, base64, mimetype ) {
-        var mimetype = ( mimetype ) ? mimetype : 'application/octet-stream',
-            data_url = 'data:' + mimetype + ';base64,' + base64,
+        mimetype = ( mimetype ) ? mimetype : 'application/octet-stream';
+        
+        var data_url = 'data:' + mimetype + ';base64,' + base64,
             download_button = d.createElement( 'a' );
         
         download_button.href = data_url;
@@ -875,7 +960,7 @@ function download_zip( tweet_info_json ) {
                     add_img_info( img_url, response.response );
                 }
             ,   onerror : function ( response ) {
-                    console.error( response.status, response.statusText );
+                    log_error( response.status, response.statusText );
                     add_img_info( img_url );
                 }
             } );
@@ -890,13 +975,13 @@ function download_zip( tweet_info_json ) {
                     return;
                 }
                 if ( xhr.status != 200 ) {
-                    console.error( xhr.status, xhr.statusText );
+                    log_error( xhr.status, xhr.statusText );
                     return;
                 }
                 add_img_info( img_url, xhr.response );
             };
             xhr.onerror = function () {
-                console.error( xhr.status, xhr.statusText );
+                log_error( xhr.status, xhr.statusText );
                 add_img_info( img_url );
             };
             xhr.send();
@@ -944,7 +1029,7 @@ function initialize_download_helper() {
             }
         }
         catch ( error ) {
-            //console.log( error );
+            //log_error( error );
         }
     }
     
@@ -971,7 +1056,7 @@ function initialize_download_helper() {
                 try_img.src = try_url;
             }
             catch ( error ) {
-                //console.error( error );
+                //log_error( error );
                 // TODO: Firefox だとうまくいかない
                 // Content Security Policy: ページの設定により次のリソースの読み込みをブロックしました: (try_url) ("img-src https://abs.twimg.com https://ssl.google-analytics.com http://www.google-analytics.com")
             }
@@ -1109,18 +1194,6 @@ function initialize_download_helper() {
         
     } // end of start_fadeout()
     
-    /*
-    //add_event( d.body, 'mousemove', function ( event ) {
-    //    fadeout = false;
-    //    link_container_style.opacity = '1.0';
-    //    
-    //    clear_fadeout_later_timer();
-    //    fadeout_later_timerid = setTimeout( function() {
-    //        start_fadeout();
-    //    }, 100 );
-    //} );
-    */
-    
     add_event( link_container, 'mouseover', function ( event ) {
         event.stopPropagation();
         clear_fadeout_later_timer();
@@ -1145,15 +1218,6 @@ function initialize_download_helper() {
     start_fadeout( initial_fadeout_limit_msec );
     
     d.body.insertBefore( link_container, d.body.firstChild );
-    
-    /*
-    //var img_shrink_to_fit = d.querySelector( 'img.shrinkToFit' );
-    //
-    //if ( img_shrink_to_fit ) {
-    //    // Firefox 対策（画像が position: absolute; top: 0; なので、リンクが隠れてしまう）
-    //    img_shrink_to_fit.style.top = '34px';
-    //}
-    */
     
     return true;
 } // end of initialize_download_helper()
@@ -1326,6 +1390,8 @@ function initialize( user_options ) {
             
             
             ,   _mousemove : function ( event ) {
+                    var self = this;
+                    
                     self.move_count ++;
                 } // end of _mousemove()
             
@@ -1369,26 +1435,29 @@ function initialize( user_options ) {
             
             button_container_template = ( function () {
                 var button_container_template = d.createElement( 'div' ),
-                    button = d.createElement( 'input' ),
+                    button = d.createElement( 'button' ),
                     button_container_style = button_container_template.style,
                     button_style = button.style,
-                    alt_text = ( is_mac() ) ? '[option]' : '[Alt]';
-                
-                button.type = 'button';
-                button_style.padding = '2px 6px';
-                button_style.color = 'gray';
-                button_style.background = 'white';
-                button_style.fontSize = '13px';
+                    alt_text = ( is_mac() ) ? '[option]' : '[Alt]',
+                    button_title;
                 
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
-                    button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
+                    button_title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
+                    
                 }
                 else {
-                    button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE );
+                    button_title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE );
                 }
                 
-                button.value = escape_html( OPTIONS.BUTTON_TEXT );
-                button_container_template.className = 'ProfileTweet-action ' + button_container_classname;
+                button_container_template.setAttribute( 'data-original-title', button_title );
+                
+                if ( is_tweetdeck() ) {
+                    button.title = button_title;
+                }
+                
+                button.className = 'btn';
+                button.textContent = escape_html( OPTIONS.BUTTON_TEXT );
+                button_container_template.className = 'ProfileTweet-action ' + button_container_classname + ' js-tooltip';
                 button_container_template.appendChild( button );
                 
                 return button_container_template;
@@ -1425,6 +1494,7 @@ function initialize( user_options ) {
                 img_link_container_style.margin = '0 auto 8px auto';
                 img_link_container_style.padding = '0 0 4px 0';
                 img_link_container_style.textAlign = 'center';
+                img_link_container_style.position = 'relative';
                 
                 return img_link_container_template;
             } )(),
@@ -1439,7 +1509,7 @@ function initialize( user_options ) {
                 help_item_template_style.fontWeight = 'normal';
                 help_item_template_style.pointerEvents = 'auto';
                 help_item_template_style.cursor = 'pointer';
-                help_item_template_style.color = 'black';
+                //help_item_template_style.color = 'black';
                 
                 return help_item_template;
             } )(),
@@ -1450,6 +1520,15 @@ function initialize( user_options ) {
                 
                 download_link_container_template.className = 'download-link-container';
                 download_link_container_style.margin = '0 0 1px 0';
+                download_link_container_style.opacity = '1.0';
+                download_link_container_style.transition = 'opacity .5s ease-in-out';
+                download_link_container_style.position = 'absolute';
+                download_link_container_style.top = '0';
+                download_link_container_style.left = '0';
+                download_link_container_style.background = 'rgba( 0, 0, 0, 0.5 )';
+                download_link_container_style.width = '100%';
+                //download_link_container_style.height = '50%';
+                download_link_container_style.minHeight = '50px';
                 
                 return download_link_container_template;
             } )(),
@@ -1551,10 +1630,11 @@ function initialize( user_options ) {
                                 smooth_scroll = options.smooth_scroll;
                             
                             if ( ! target_container.classList.contains( 'current' ) ) {
-                                var current_container = image_overlay_container.querySelector( '.image-link-container.current' );
+                                var current_container = image_overlay_container.querySelector( '.image-link-container.current' ),
+                                    download_link;
                                 
                                 if ( current_container ) {
-                                    var download_link = current_container.querySelector( '.download-link' );
+                                    download_link = current_container.querySelector( '.download-link' );
                                     
                                     if ( download_link ) {
                                         download_link.style.border = 'solid 2px #e1e8ed';
@@ -1567,7 +1647,7 @@ function initialize( user_options ) {
                                 target_container.classList.add( 'current' );
                                 target_container.style.background = 'rgba( 128, 128, 128, 0.1 )';
                                 
-                                var download_link = target_container.querySelector( '.download-link' );
+                                download_link = target_container.querySelector( '.download-link' );
                                 
                                 if ( download_link ) {
                                     download_link.style.border = 'solid 2px silver';
@@ -1602,8 +1682,9 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_scroll_to( options ) {
-                            var options = ( options ) ? options : {},
-                                offset = options.offset,
+                            options = ( options ) ? options : {};
+                            
+                            var offset = options.offset,
                                 lock_after_scroll = options.lock_after_scroll;
                             
                             if ( lock_after_scroll ) {
@@ -1615,8 +1696,9 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_horizontal_scroll_to( options ) {
-                            var options = ( options ) ? options : {},
-                                offset = options.offset,
+                            options = ( options ) ? options : {};
+                            
+                            var offset = options.offset,
                                 lock_after_scroll = options.lock_after_scroll;
                             
                             if ( lock_after_scroll ) {
@@ -1642,28 +1724,36 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_smooth_scroll( options ) {
-                            var options = ( options ) ? options : {},
-                                scroll_height = options.scroll_height,
+                            options = ( options ) ? options : {};
+                            
+                            var scroll_height = options.scroll_height,
                                 step = options.step,
                                 interval = options.interval,
                                 lock_after_scroll = options.lock_after_scroll,
-                                remain_height = scroll_height,
-                                step = ( step ) ? step : OPTIONS.SMOOTH_SCROLL_STEP,
-                                direction = ( step < 0 ) ? -1 : 1,
-                                step = Math.abs( step ),
-                                interval = ( interval ) ? interval : OPTIONS.SMOOTH_SCROLL_INTERVAL;
+                                remain_height = scroll_height;
+                            
+                            step = ( step ) ? step : OPTIONS.SMOOTH_SCROLL_STEP;
+                            
+                            var direction = ( step < 0 ) ? -1 : 1;
+                            
+                            step = Math.abs( step );
+                            interval = ( interval ) ? interval : OPTIONS.SMOOTH_SCROLL_INTERVAL;
+                            
+                            
+                            function step_scroll( remain_height, timing ) {
+                                var timerid = setTimeout( function () {
+                                    var current_step = direction * ( ( step < remain_height ) ? step : remain_height );
+                                    image_overlay_container_scroll_step( current_step );
+                                    
+                                    remove_timerid( timerid );
+                                }, timing );
+                                
+                                timerid_list.push( timerid );
+                            } // end of step_scroll()
+                            
                             
                             for ( var ci = 0; 0 < remain_height; ci ++, remain_height -= step ) {
-                                ( function ( remain_height, timing ) {
-                                    var timerid = setTimeout( function () {
-                                        var current_step = direction * ( ( step < remain_height ) ? step : remain_height );
-                                        image_overlay_container_scroll_step( current_step );
-                                        
-                                        remove_timerid( timerid );
-                                    }, timing );
-                                    
-                                    timerid_list.push( timerid );
-                                } )( remain_height, interval * ci );
+                                step_scroll( remain_height, interval * ci );
                             }
                             
                             if ( lock_after_scroll ) {
@@ -1674,7 +1764,7 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_page_step( direction ) {
-                            var direction = ( direction ) ? direction : 1;
+                            direction = ( direction ) ? direction : 1;
                             
                             image_overlay_container_smooth_scroll( {
                                 scroll_height : image_overlay_container.clientHeight
@@ -1686,8 +1776,9 @@ function initialize( user_options ) {
                         
                         function image_overlay_container_image_init() {
                             var image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) ),
-                                start_container = image_overlay_container.querySelector( '.image-link-container.start' ),
-                                start_container = ( start_container ) ? start_container : image_overlay_container.querySelector( '.image-link-container' );
+                                start_container = image_overlay_container.querySelector( '.image-link-container.start' );
+                            
+                            start_container = ( start_container ) ? start_container : image_overlay_container.querySelector( '.image-link-container' );
                             
                             image_link_containers.forEach( function ( image_link_container, index ) {
                                 var image_link = image_link_container.querySelector( '.image-link' ),
@@ -1751,8 +1842,9 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_image_step( direction ) {
-                            var direction = ( direction ) ? direction : 1,
-                                image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) ),
+                            direction = ( direction ) ? direction : 1;
+                            
+                            var image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) ),
                                 current_container = image_overlay_container.querySelector( '.image-link-container.current' ),
                                 next_container;
                             
@@ -2006,12 +2098,13 @@ function initialize( user_options ) {
                         image_overlay_status_container.className = SCRIPT_NAME + '_status_overlay';
                         image_overlay_status_container_style.position = 'absolute';
                         image_overlay_status_container_style.top = 0;
-                        image_overlay_status_container_style.right = 0;
-                        image_overlay_status_container_style.bottom = 0;
-                        image_overlay_status_container_style.left = 0;
+                        //image_overlay_status_container_style.right = 0;
+                        //image_overlay_status_container_style.bottom = 0;
+                        image_overlay_status_container_style.left = '16px';
                         image_overlay_status_container_style.padding = '6px 0';
                         image_overlay_status_container_style.textAlign = 'center';
                         image_overlay_status_container_style.pointerEvents = 'none';
+                        //image_overlay_status_container_style.color = 'black';
                         
                         return image_overlay_status_container;
                     } )(),
@@ -2022,7 +2115,7 @@ function initialize( user_options ) {
                         
                         image_overlay_shortcut_help.className = SCRIPT_NAME + '_shortcut_help_overlay';
                         image_overlay_shortcut_help_style.cssFloat = 'left';
-                        image_overlay_shortcut_help_style.margin = '2px 8px';
+                        image_overlay_shortcut_help_style.margin = '2px 8px 2px 64px';
                         
                         return image_overlay_shortcut_help;
                     } )(),
@@ -2062,7 +2155,7 @@ function initialize( user_options ) {
                 ,   status_container : image_overlay_status_container
                 ,   shortcut_help : image_overlay_shortcut_help
                 ,   drag_scroll : image_overlay_drag_scroll
-                }
+                };
             } )(),
             
             image_overlay_container = image_overlay.container,
@@ -2143,6 +2236,26 @@ function initialize( user_options ) {
                         mouse_click.stop();
                     } );
                     
+                    add_event( download_link_container, 'mouseover', function ( event ) {
+                        download_link_container.style.opacity = '1.0';
+                    } );
+                    
+                    add_event( download_link_container, 'mousemove', function ( event ) {
+                        download_link_container.style.opacity = '1.0';
+                    } );
+                    
+                    add_event( download_link_container, 'mouseout', function ( event ) {
+                        download_link_container.style.opacity = '0';
+                    } );
+                    
+                    object_extender( MouseClick ).init( download_link_container ).start( function ( event ) {
+                        event.stopPropagation();
+                        event.preventDefault();
+                        return false;
+                    } );
+                    
+                    download_link_container.style.opacity = '0';
+                    
                     download_link_container.appendChild( download_link );
                     img_link_container.appendChild( download_link_container );
                 }
@@ -2196,7 +2309,7 @@ function initialize( user_options ) {
         
         function show_overlay( img_urls, tweet_url, title, start_img_url, tweet, all_img_urls ) {
             if ( image_overlay_container.style.display != 'none' ) {
-                //console.error( 'show_overlay(): duplicate called' );
+                //log_error( 'show_overlay(): duplicate called' );
                 // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
                 return;
             }
@@ -2292,6 +2405,17 @@ function initialize( user_options ) {
             image_overlay_close_link.setAttribute( 'data-img-urls', encodeURIComponent( JSON.stringify( img_urls ) ) );
             image_overlay_close_link.setAttribute( 'data-all-img-urls', encodeURIComponent( JSON.stringify( all_img_urls ) ) );
             
+            if ( is_night_mode() ) {
+                image_overlay_close_link.style.color = 'white';
+                image_overlay_header.style.background = '#1b2836';
+                image_overlay_header.style.borderBottom = 'solid 1px #141D26';
+            }
+            else {
+                image_overlay_close_link.style.color = 'black';
+                image_overlay_header.style.background = 'white';
+                image_overlay_header.style.borderBottom = 'solid 1px silver';
+            }
+            
             add_images_to_page( img_urls, image_overlay_image_container, {
                 start_img_url : start_img_url
             ,   callback : function () {
@@ -2378,14 +2502,17 @@ function initialize( user_options ) {
                 var image_size_types = {
                         'fit-width' : 'full'
                     ,   'full' : 'fit-height'
-                    ,   'fit-height' : 'fit-width'
+                    ,   'fit-height' : 'fit-window'
+                    ,   'fit-window' : 'fit-width'
                     },
                     help_image_size_types = {
                         'fit-width' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH'
                     ,   'full' : 'HELP_OVERLAY_SHORTCUT_SIZE_FULL'
                     ,   'fit-height' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT'
+                    ,   'fit-window' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_WINDOW'
                     },
-                    image_size = ( localStorage[ SCRIPT_NAME + '_saved_image_size' ] ) ? localStorage[ SCRIPT_NAME + '_saved_image_size' ] : OPTIONS.DEFAULT_IMAGE_SIZE,
+                    saved_image_size = localStorage[ SCRIPT_NAME + '_saved_image_size' ],
+                    image_size = ( image_size_types[ saved_image_size ] ) ? saved_image_size : OPTIONS.DEFAULT_IMAGE_SIZE,
                     help = import_node( help_item_template ),
                     first_event = true;
                 
@@ -2407,6 +2534,8 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help );
                 
                 remove_event( image_overlay_container, 'image-fit-height' );
+                remove_event( image_overlay_container, 'image-fit-window' );
+                
                 add_event( image_overlay_container, 'image-fit-height', function ( event ) {
                     if ( image_size != 'fit-height' ) {
                         return false;
@@ -2419,12 +2548,40 @@ function initialize( user_options ) {
                     }
                     
                     var first_element_top_offset = parseInt( getComputedStyle( image_overlay_container ).paddingTop ) + get_element_position( first_image ).y - get_element_position( image_overlay_image_container ).y,
-                        maxHeight = w.innerHeight - first_element_top_offset - 20, // TODO: スクロールバーの幅分を自動で調整したい
-                        image_list = to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) );
+                        maxWidth = w.innerWidth - 16, // TODO: スクロールバーの幅分を自動で調整したい
+                        maxHeight_with_scrollbar = w.innerHeight - first_element_top_offset - 4, // TODO: パディング分を自動で調整したい
+                        maxHeight = maxHeight_with_scrollbar, // TODO: スクロールバーの幅分を自動で調整したい
+                        image_list = to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ),
+                        overflow_image_list = [];
                     
                     if ( image_list.length == 1 ) {
-                        // 高さを調節しても縦スクロールバーが出てしまうことがあるので強制的に隠す
+                        // 1枚のみの場合、縦スクロールバーは出さない
+                        // →調節してもスクロールバーが出てしまうことがあるので強制的に隠す
                         image_overlay_container.style.overflowY = 'hidden';
+                        maxWidth = w.innerWidth;
+                    }
+                    else {
+                        image_overlay_container.style.overflowY = 'auto';
+                    }
+                    
+                    overflow_image_list = image_list.filter( function ( img, index ) {
+                        if ( ( img.naturalWidth <= maxWidth ) && ( img.naturalHeight <= maxHeight_with_scrollbar ) ) {
+                            return false;
+                        }
+                        else if ( ( img.naturalWidth * maxHeight_with_scrollbar / img.naturalHeight ) <= maxWidth ) {
+                            return false;
+                        }
+                        return true;
+                    } );
+                    
+                    if ( 0 < overflow_image_list.length ) {
+                        maxHeight = maxHeight_with_scrollbar - 16;
+                        image_overlay_container.style.overflowX = 'auto';
+                    }
+                    else {
+                        // オーバーフローしないならば、横スクロールバーも出さない
+                        // →調節してもスクロールバーが出てしまうことがあるので強制的に隠す
+                        image_overlay_container.style.overflowX = 'hidden';
                     }
                     
                     image_list.forEach( function ( img ) {
@@ -2434,16 +2591,64 @@ function initialize( user_options ) {
                     return false;
                 }, true );
                 
-                remove_event( w, 'resize' );
-                add_event( w, 'resize', function ( event ) {
-                    if ( image_size != 'fit-height' ) {
+                add_event( image_overlay_container, 'image-fit-window', function ( event ) {
+                    if ( image_size != 'fit-window' ) {
                         return false;
                     }
                     
-                    setTimeout( function () {
-                        fire_event( image_overlay_container, 'image-fit-height' );
-                    }, 100 );
+                    var first_image = image_overlay_image_container.querySelector( 'img.original-image' );
                     
+                    if ( ! first_image ) {
+                        return false;
+                    }
+                    
+                    var first_element_top_offset = parseInt( getComputedStyle( image_overlay_container ).paddingTop ) + get_element_position( first_image ).y - get_element_position( image_overlay_image_container ).y,
+                        maxWidth = w.innerWidth,
+                        maxHeight = w.innerHeight - first_element_top_offset - 4, // TODO: パディング分を自動で調整したい
+                        image_list = to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) );
+                    
+                    image_overlay_container.style.overflowX = 'hidden'; // 横スクロールバーは出さない
+                    
+                    if ( image_list.length == 1 ) {
+                        // 1枚のみの場合、縦スクロールバーも出さない
+                        // →調節してもスクロールバーが出てしまうことがあるので強制的に隠す
+                        image_overlay_container.style.overflowY = 'hidden';
+                    }
+                    else {
+                        image_overlay_container.style.overflowY = 'auto';
+                    }
+                    
+                    image_list.forEach( function ( img ) {
+                        if ( ( img.naturalWidth <= maxWidth ) && ( img.naturalHeight <= maxHeight ) ) {
+                            return;
+                        }
+                        
+                        if ( ( img.naturalHeight * maxWidth / img.naturalWidth ) <= maxHeight ) {
+                            img.style.maxWidth = '100%';
+                            return;
+                        }
+                        
+                        img.style.maxHeight = maxHeight + 'px';
+                    } );
+                    
+                    return false;
+                }, true );
+                
+                remove_event( w, 'resize' );
+                add_event( w, 'resize', function ( event ) {
+                    switch ( image_size ) {
+                        case 'fit-height' :
+                            setTimeout( function () {
+                                fire_event( image_overlay_container, 'image-fit-height' );
+                            }, 100 );
+                            break;
+                        
+                        case 'fit-window' :
+                            setTimeout( function () {
+                                fire_event( image_overlay_container, 'image-fit-window' );
+                            }, 100 );
+                            break;
+                    }
                     return false;
                 }, true );
                 
@@ -2460,6 +2665,7 @@ function initialize( user_options ) {
                     var width_max = 0,
                         all_image_loaded = true;
                     
+                    image_overlay_container.style.overflowX = 'auto';
                     image_overlay_container.style.overflowY = 'auto';
                     
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
@@ -2477,13 +2683,22 @@ function initialize( user_options ) {
                                 img.style.maxWidth = '100%';
                                 img.style.maxHeight = 'none';
                                 break;
+                            
                             case 'full' :
                                 img.style.width = 'auto';
                                 img.style.height = 'auto';
                                 img.style.maxWidth = 'none';
                                 img.style.maxHeight = 'none';
                                 break;
+                            
                             case 'fit-height' :
+                                img.style.width = 'auto';
+                                img.style.height = 'auto';
+                                img.style.maxWidth = 'none';
+                                img.style.maxHeight = 'none';
+                                break;
+                            
+                            case 'fit-window' :
                                 img.style.width = 'auto';
                                 img.style.height = 'auto';
                                 img.style.maxWidth = 'none';
@@ -2498,11 +2713,18 @@ function initialize( user_options ) {
                                 image_link_container.style.width = 'auto';
                                 image_link_container.style.height = 'auto';
                                 break;
+                            
                             case 'full' :
                                 image_link_container.style.width = width_max + 'px';
                                 image_link_container.style.height = 'auto';
                                 break;
+                            
                             case 'fit-height' :
+                                image_link_container.style.width = 'auto';
+                                image_link_container.style.height = 'auto';
+                                break;
+                            
+                            case 'fit-window' :
                                 image_link_container.style.width = 'auto';
                                 image_link_container.style.height = 'auto';
                                 break;
@@ -2517,15 +2739,29 @@ function initialize( user_options ) {
                     fire_event( image_overlay_container, 'lock-mouseover' ); // current 要素を変更しないようにロックしておく
                     
                     setTimeout( function () {
-                        if ( image_size == 'fit-height' ) {
-                            fire_event( image_overlay_container, 'image-fit-height' );
+                        switch ( image_size ) {
+                            case 'fit-height' :
+                                fire_event( image_overlay_container, 'image-fit-height' );
+                                break;
+                            
+                            case 'fit-window' :
+                                fire_event( image_overlay_container, 'image-fit-window' );
+                                break;
                         }
                         fire_event( image_overlay_container, 'scroll-to-horizontal-middle' );
                         fire_event( image_overlay_container, 'scroll-to-current-image-container' );
                     }, 100 );
                     
-                    if ( all_image_loaded && ( image_size == 'fit-height' ) ) {
-                        fire_event( image_overlay_container, 'image-fit-height' );
+                    if ( all_image_loaded ) {
+                        switch ( image_size ) {
+                            case 'fit-height' :
+                                fire_event( image_overlay_container, 'image-fit-height' );
+                                break;
+                            
+                            case 'fit-window' :
+                                fire_event( image_overlay_container, 'image-fit-window' );
+                                break;
+                        }
                     }
                     
                     localStorage[ SCRIPT_NAME + '_saved_image_size' ] = image_size;
@@ -2638,7 +2874,7 @@ function initialize( user_options ) {
                     child_document.close();
                 }
                 catch ( error ) {
-                    //console.error( error ); // Firefox 43.0.4 (Greasemonkey): SecurityError: The operation is insecure.
+                    //log_error( error ); // Firefox 43.0.4 (Greasemonkey): SecurityError: The operation is insecure.
                     // ※ Firefox(Greasemonkey) の場合、child_document.open() が SecurityError となってしまう
                     //    また、load された時点で、既に '<head></head><body></body>' になっている模様
                 }
@@ -2695,9 +2931,11 @@ function initialize( user_options ) {
         
         
         function add_open_button( tweet ) {
-            var tweet_container = ( is_tweetdeck() ) ? search_ancestor( tweet, [ 'js-stream-item' ] ) : null,
-                tweet_container = ( tweet_container ) ? tweet_container : tweet,
-                old_button = tweet_container.querySelector( '.' + button_container_classname );
+            var tweet_container = ( is_tweetdeck() ) ? search_ancestor( tweet, [ 'js-stream-item' ] ) : null;
+            
+            tweet_container = ( tweet_container ) ? tweet_container : tweet;
+            
+            var old_button = tweet_container.querySelector( '.' + button_container_classname );
             
             function remove_old_button( old_button ) {
                 if ( ! old_button ) {
@@ -2746,8 +2984,10 @@ function initialize( user_options ) {
                 var img_urls = [];
                 
                 to_array( img_objects ).forEach( function ( img ) {
+                    var img_url;
+                    
                     if ( img.src ) {
-                        var img_url = get_img_url_orig( img.src );
+                        img_url = get_img_url_orig( img.src );
                         
                         if ( ! /tweetdeck/.test( img_url ) ) {
                             if ( OPTIONS.SWAP_IMAGE_URL ) {
@@ -2757,7 +2997,7 @@ function initialize( user_options ) {
                         }
                     }
                     else if ( img.href ) {
-                        var img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
+                        img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
                         
                         if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                             img_url = get_img_url_orig( img_url );
@@ -2792,11 +3032,12 @@ function initialize( user_options ) {
                 all_img_objects = get_img_objects( source_container ),
                 gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
                 img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img, a.med-origlink[href^="https://ton.twitter.com"]' ) : null,
-                img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects,
                 action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
-                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' ),
                 img_urls = [],
                 all_img_urls = [];
+            
+            action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
+            img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects;
             
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
                 return null;
@@ -2815,7 +3056,7 @@ function initialize( user_options ) {
             }
             
             var button_container = button_container_template.cloneNode( true ),
-                button = button_container.querySelector( 'input[type="button"]' );
+                button = button_container.querySelector( 'button' );
             
             if ( ! OPTIONS.DISPLAY_ORIGINAL_BUTTONS ) {
                 button_container.style.display = 'none';
@@ -2864,8 +3105,17 @@ function initialize( user_options ) {
                 button_container.classList.remove( 'removed' );
                 
                 if ( is_tweetdeck() ) {
-                    if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
-                        action_list.insertBefore( button_container, action_list.firstChild );
+                    if ( action_list.tagName == 'FOOTER' ) {
+                        if ( search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
+                            button.style.marginTop = '0';
+                            button.style.marginBottom = '8px';
+                            action_list.insertBefore( button_container, action_list.firstChild );
+                        }
+                        else {
+                            button.style.marginTop = '8px';
+                            button.style.marginBottom = '0px';
+                            action_list.appendChild( button_container );
+                        }
                     }
                     else {
                         action_list.appendChild( button_container );
@@ -2973,7 +3223,7 @@ function initialize( user_options ) {
             function remove_all_image_events( event ) {
                 to_array( img_objects ).forEach( function ( img ) {
                     fire_event( img, 'remove-image-events' );
-                } )
+                } );
             } // end of remove_all_image_events()
             
             add_event( button_container, 'remove-all-image-events', remove_all_image_events );
@@ -3156,7 +3406,7 @@ function initialize( user_options ) {
         }
         
         function get_button( ancestor ) {
-            return ( ancestor ) ? ancestor.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
+            return ( ancestor ) ? ancestor.querySelector( '.' + SCRIPT_NAME + 'Button button' ) : null;
         } // end of get_button()
         
         var gallery = d.querySelector( '.Gallery, .js-modal-panel' ),
@@ -3337,7 +3587,6 @@ function initialize( user_options ) {
                 
                 case OPTIONS.KEYCODE_CLOSE_OVERLAY :
                     return close_overlay_on_keypress( event );
-                    break;
                 
                 default :
                     if ( check_overlay_key_event( key_code, event ) ) {
@@ -3378,7 +3627,53 @@ function initialize( user_options ) {
     } // end of start_mouse_observer()
     
     
+    function insert_css( css_rule_text ) {
+        var parent = d.querySelector( 'head' ) || d.body || d.documentElement,
+            css_style = d.createElement( 'style' ),
+            css_rule = d.createTextNode( css_rule_text );
+        
+        css_style.type = 'text/css';
+        css_style.className = SCRIPT_NAME + '-css-rule';
+        
+        if ( css_style.styleSheet ) {
+            css_style.styleSheet.cssText = css_rule.nodeValue;
+        }
+        else {
+            css_style.appendChild( css_rule );
+        }
+        
+        parent.appendChild( css_style );
+    } // end of insert_css()
+    
+    
+    function set_user_css() {
+        var button_selector = '.' + SCRIPT_NAME + 'Button button.btn',
+            css_rule_lines = [
+                button_selector + '{padding:2px 6px; font-weight:normal; min-height:16px;}'
+            ];
+        
+        if ( is_tweetdeck() ) {
+            css_rule_lines.push( button_selector + '{font-size:11px;margin:8px 0 8px 0;}' );
+            css_rule_lines.push( 'html.dark ' + button_selector + '{}' );
+        }
+        else {
+            css_rule_lines.push( button_selector + '{font-size:13px;}' );
+            // TODO: [夜間モード対応] TweetDeck の場合 html.dark で判別がつく一方、Twitter の場合 CSS ファイルそのものを入れ替えている→ CSSルールでの切替困難
+        }
+        
+        to_array( d.querySelectorAll( 'style.' + SCRIPT_NAME + '-css-rule' ) ).forEach( function ( old_style_css_rull ) {
+            old_style_css_rull.parentNode.removeChild( old_style_css_rull );
+        } );
+        
+        insert_css( css_rule_lines.join( '\n' ) );
+    
+    } // end of set_user_css()
+    
+    
     function main() {
+        // 適用する CSS を挿入
+        set_user_css();
+        
         // 新規に挿入されるツイートの監視開始
         start_mutation_observer();
         

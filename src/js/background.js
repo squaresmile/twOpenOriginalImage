@@ -77,7 +77,9 @@ function download_image( img_url ) {
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
         filename = get_filename_from_image_url( img_url_orig );
     
-    // ある時点から、ファイル名が変わらなくなった(0.1.7.1000で2017年7月末頃発生)
+    log_debug( '*** download_image():', img_url, img_url_orig, filename );
+    
+    // ある時点から、ファイル名が変わらなくなった(0.1.7.1000で2017年7月末頃発生・クロスドメインとみなされている模様)
     //var download_link = d.createElement( 'a' );
     //download_link.href = img_url_orig;
     //download_link.download = filename;
@@ -91,6 +93,16 @@ function download_image( img_url ) {
     //    url : img_url_orig
     //,   filename : filename
     //} );
+    
+    if ( is_firefox() && /\.png$/i.test( filename ) ) {
+        // TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+        // → 暫定的に PNG のみ、chrome.downloads.download() を使う
+        chrome.downloads.download( {
+            url : img_url_orig
+        ,   filename : filename
+        } );
+        return;
+    }
     
     var xhr = new XMLHttpRequest();
     
@@ -111,7 +123,7 @@ function download_image( img_url ) {
         
         download_link.click();
         // TODO: MS-Edge 拡張機能の場合、ダウンロードされない
-        // TODO: Firefox WebExtension の場合、XMLHttpRequest を使うと PNG がうまくダウンロードできない場合がある
+        // TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
         
         download_link.parentNode.removeChild( download_link );
     };
@@ -123,7 +135,6 @@ function download_image( img_url ) {
     };
     xhr.send();
 
-    log_debug( '*** download_image():', img_url, img_url_orig, filename );
 } // end of download_image()
 
 
