@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.20
+// @version         0.1.7.21
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -615,7 +615,7 @@ function get_datetime_string_from_timestamp_ms( timestamp_ms ) {
     if ( ( ! timestamp_ms ) || isNaN( timestamp_ms ) ) {
         return '';
     }
-    return ( new Date( parseInt( timestamp_ms, 10 ) ).toLocaleString() );
+    return ( new Date( parseInt( timestamp_ms, 10 ) ).toLocaleString().replace( /\u200e/g, '' ) ); // MS-Edge では U+200E (LEFT-TO-RIGHT MARK) が含まれてしまう
 } // end of get_datetime_string_from_timestamp_ms()
 
 
@@ -836,12 +836,14 @@ function download_zip( tweet_info_json ) {
     } );
     
     if ( fullname && username ) {
-        zip.file( filename_prefix + '.txt', [
-            fullname + ' (' + username + ') ' + datetime_string
-        ,   tweet_url
-        ,   title
-        ,   img_urls.join( '\n' )
-        ].join( '\n\n' ) + '\n', {
+        var tweet_info_text = [
+                fullname + ' (' + username + ') ' + datetime_string
+            ,   tweet_url
+            ,   title
+            ,   img_urls.join( '\n' )
+            ].join( '\n\n' ) + '\n';
+        
+        zip.file( filename_prefix + '.txt', tweet_info_text, {
             date : zipdate
         } );
     }
@@ -1010,7 +1012,12 @@ function initialize_download_helper() {
         // TODO: 第三者のサイト上であっても、window.name にフォーマットにあった値を設定されてしまうと、指定通りに保存されてしまう
         // →暫定的に、referrer 確認で対処
         
-        if ( w.name == SCRIPT_NAME + '_download_frame' ) {
+        if (
+            ( is_edge() && ( w.parent !== w ) ) ||
+            // TODO: MS-Edge ＋ Tampermonkey の場合、IFRAME 経由で呼び出すと、window.name の値が読めない
+            // → やむを得ず、IFRAME からの呼び出しであることのみチェック
+            (  w.name == SCRIPT_NAME + '_download_frame' )
+        ) {
             // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
             d.documentElement.appendChild( link );
             
@@ -1903,9 +1910,14 @@ function initialize( user_options ) {
                                 ,   timestamp_ms : image_overlay_close_link.getAttribute( 'data-timestamp-ms' )
                                 } );
                             
-                            if ( is_firefox() ) {
+                            if (
+                                is_firefox() ||
                                 // TODO: Firefox の場合、IFRAME 経由で呼び出すと、ダウンロード用の a#href に blob:～ を入れた時点で CSP に引っかかってしまう
                                 // →対策として、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
+                                is_edge()
+                                // TODO: MS-Edge ＋ Tampermonkey の場合、IFRAME 経由で呼び出すと、window.name の値が読めない
+                                // → Firefox と同じく、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
+                            ) {
                                 
                                 if ( typeof GM_xmlhttpRequest == 'function' ) {
                                     download_zip( tweet_info_json );
@@ -2649,8 +2661,25 @@ function initialize( user_options ) {
                             }, 100 );
                             break;
                     }
+                    adjust_last_image_link_container();
+                    
                     return false;
                 }, true );
+                
+                
+                function adjust_last_image_link_container() {
+                    var image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) );
+                    
+                    if ( image_link_containers.length <= 0 ) {
+                        return;
+                    }
+                    
+                    var first_image = image_link_containers[ 0 ].querySelector( 'img.original-image' ),
+                        first_element_top_offset = parseInt( getComputedStyle( image_overlay_container ).paddingTop ) + get_element_position( first_image ).y - get_element_position( image_overlay_image_container ).y,
+                        maxHeight = w.innerHeight - first_element_top_offset - 4; // TODO: パディング分を自動で調整したい
+                    
+                    image_link_containers[ image_link_containers.length - 1 ].style.minHeight = maxHeight + 'px';
+                } // end of adjust_last_image_link_container()
                 
                 
                 function get_next_size( image_size ) {
@@ -2663,12 +2692,14 @@ function initialize( user_options ) {
                 
                 function change_size( next_size ) {
                     var width_max = 0,
-                        all_image_loaded = true;
+                        all_image_loaded = true,
+                        original_images = to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ),
+                        image_link_containers =to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) );
                     
                     image_overlay_container.style.overflowX = 'auto';
                     image_overlay_container.style.overflowY = 'auto';
                     
-                    to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
+                    original_images.forEach( function ( img ) {
                         if ( ! img.naturalWidth ) {
                             all_image_loaded = false;
                         }
@@ -2707,7 +2738,7 @@ function initialize( user_options ) {
                         }
                     } );
                     
-                    to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) ).forEach( function ( image_link_container ) {
+                    image_link_containers.forEach( function ( image_link_container ) {
                         switch ( next_size ) {
                             case 'fit-width' :
                                 image_link_container.style.width = 'auto';
@@ -2730,6 +2761,8 @@ function initialize( user_options ) {
                                 break;
                         }
                     } );
+                    
+                    adjust_last_image_link_container();
                     
                     clear_node( help );
                     help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE + OPTIONS[ help_image_size_types[ next_size ] ] ) );
