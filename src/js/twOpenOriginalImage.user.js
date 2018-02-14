@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.21
+// @version         0.1.7.22
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -3686,8 +3686,9 @@ function initialize( user_options ) {
             ];
         
         if ( is_tweetdeck() ) {
-            css_rule_lines.push( button_selector + '{font-size:11px;margin:8px 0 8px 0;}' );
-            css_rule_lines.push( 'html.dark ' + button_selector + '{}' );
+            css_rule_lines.push( button_selector + '{margin:8px 0 8px 0; padding: 0 8px;border-radius:12px; font-size:11px;}' );
+            css_rule_lines.push( 'html.dark ' + button_selector + ', #open-modal ' + button_selector + '{background:transparent;}' );
+            css_rule_lines.push( 'html.dark ' + button_selector + ':hover, #open-modal ' + button_selector + ':hover{background:#183142;}' );
         }
         else {
             css_rule_lines.push( button_selector + '{font-size:13px;}' );
