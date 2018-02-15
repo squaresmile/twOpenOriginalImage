@@ -65,6 +65,39 @@ function update_context_menu_flags() {
 } // end of update_context_menu_flags()
 
 
+function get_url_info( url ) {
+    var url_parts = url.split( '?' ),
+        query_map = {},
+        url_info = { base_url : url_parts[ 0 ], query_map : query_map };
+    
+    if ( url_parts.length < 2 ) {
+        return url_info;
+    }
+    
+    url_parts[ 1 ].split( '&' ).forEach( function ( query_part ) {
+        var parts = query_part.split( '=' );
+        
+        query_map[ parts[ 0 ] ] = ( parts.length < 2 ) ? '' : parts[ 1 ];
+    } );
+    
+    return url_info;
+} // end of get_url_info()
+
+
+function normalize_img_url( source_url ) {
+    var url_info = get_url_info( source_url ),
+        base_url = url_info.base_url,
+        format = url_info.query_map.format,
+        name = url_info.query_map.name;
+    
+    if ( ! format ) {
+        return source_url;
+    }
+    
+    return base_url + '.' + format + ( ( name ) ? ':' + name : '' );
+} // end of normalize_img_url()
+
+
 function get_filename_from_image_url( img_url ) {
     if ( ! /:\w*$/.test( img_url ) ) {
         return null;
@@ -74,6 +107,8 @@ function get_filename_from_image_url( img_url ) {
 
 
 function download_image( img_url ) {
+    img_url = normalize_img_url( img_url );
+    
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
         filename = get_filename_from_image_url( img_url_orig );
     

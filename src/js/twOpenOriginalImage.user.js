@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.22
+// @version         0.1.7.23
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -110,13 +110,18 @@ var OPTIONS = {
 // 共通変数
 var DEBUG = false,
     LANGUAGE = ( function () {
-    try{
-        return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
-    }
-    catch ( error ) {
-        return 'en';
-    }
-} )();
+        try {
+            return d.querySelector( 'html' ).getAttribute( 'lang' );
+        }
+        catch ( error ) {
+            try{
+                return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
+            }
+            catch ( error ) {
+                return 'en';
+            }
+        }
+    } )();
 
 switch ( LANGUAGE ) {
     case 'ja' :
@@ -541,7 +546,42 @@ function remove_event() {
 } // end of add_event()
 
 
+function get_url_info( url ) {
+    var url_parts = url.split( '?' ),
+        query_map = {},
+        url_info = { base_url : url_parts[ 0 ], query_map : query_map };
+    
+    if ( url_parts.length < 2 ) {
+        return url_info;
+    }
+    
+    url_parts[ 1 ].split( '&' ).forEach( function ( query_part ) {
+        var parts = query_part.split( '=' );
+        
+        query_map[ parts[ 0 ] ] = ( parts.length < 2 ) ? '' : parts[ 1 ];
+    } );
+    
+    return url_info;
+} // end of get_url_info()
+
+
+function normalize_img_url( source_url ) {
+    var url_info = get_url_info( source_url ),
+        base_url = url_info.base_url,
+        format = url_info.query_map.format,
+        name = url_info.query_map.name;
+    
+    if ( ! format ) {
+        return source_url;
+    }
+    
+    return base_url + '.' + format + ( ( name ) ? ':' + name : '' );
+} // end of normalize_img_url()
+
+
 function get_img_extension( img_url, extension_list ) {
+    img_url = normalize_img_url( img_url );
+    
     var extension = '';
     
     extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
@@ -554,6 +594,8 @@ function get_img_extension( img_url, extension_list ) {
 
 
 function get_img_kind( img_url ) {
+    img_url = normalize_img_url( img_url );
+    
     var kind = 'medium';
     
     if ( img_url.match( /:(\w*)$/ ) ) {
@@ -564,6 +606,8 @@ function get_img_kind( img_url ) {
 
 
 function get_img_url( img_url, kind ) {
+    img_url = normalize_img_url( img_url );
+    
     if ( ! kind ) {
         kind = '';
     }
@@ -586,6 +630,8 @@ function get_img_url_orig( img_url ) {
 
 
 function get_img_filename( img_url ) {
+    img_url = normalize_img_url( img_url );
+    
     return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
 } // end of get_img_filename()
 
@@ -3030,7 +3076,7 @@ function initialize( user_options ) {
                         }
                     }
                     else if ( img.href ) {
-                        img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
+                        img_url = normalize_img_url( img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href );
                         
                         if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                             img_url = get_img_url_orig( img_url );
@@ -3216,7 +3262,7 @@ function initialize( user_options ) {
                                 button.click();
                             }
                             else if ( img.href ) {
-                                var img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
+                                var img_url = normalize_img_url( img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href );
                                 
                                 if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                                     button.setAttribute( 'data-target-img-url', get_img_url_orig( img_url ) );
