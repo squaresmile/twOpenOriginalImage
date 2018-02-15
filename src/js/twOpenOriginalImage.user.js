@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.23
+// @version         0.1.7.24
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -109,7 +109,25 @@ var OPTIONS = {
 
 // 共通変数
 var DEBUG = false,
+
+    is_tweetdeck = ( function () {
+        var flag = ( !! ( w.location.href.match( /^https?:\/\/tweetdeck\.twitter\.com/ ) ) );
+        
+        return function () {
+            return flag;
+        };
+    } )(), // end of is_tweetdeck()
+    
     LANGUAGE = ( function () {
+        if ( is_tweetdeck() ) {
+            try{
+                return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
+            }
+            catch ( error ) {
+                return 'en';
+            }
+        }
+        
         try {
             return d.querySelector( 'html' ).getAttribute( 'lang' );
         }
@@ -307,15 +325,6 @@ var is_bookmarklet = ( function () {
         return flag;
     };
 } )(); // end of is_bookmarklet()
-
-
-var is_tweetdeck = ( function () {
-    var flag = ( !! ( w.location.href.match( /^https?:\/\/tweetdeck\.twitter\.com/ ) ) );
-    
-    return function () {
-        return flag;
-    };
-} )(); // end of is_tweetdeck()
 
 
 function is_night_mode() {
