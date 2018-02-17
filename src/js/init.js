@@ -87,6 +87,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
         ,   OVERRIDE_GALLERY_FOR_TWEETDECK : get_bool
         ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : get_bool
         ,   SWAP_IMAGE_URL : get_bool
+        ,   HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY : get_bool
         ,   OPERATION : get_bool
         ,   WAIT_AFTER_OPENPAGE : get_int
         ,   TITLE_PREFIX : get_text

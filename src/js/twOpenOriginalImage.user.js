@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.24
+// @version         0.1.7.25
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -91,6 +91,7 @@ var OPTIONS = {
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 ,   DOWNLOAD_ZIP_IS_VALID : true // true: ZIPダウンロード有効
 ,   SWAP_IMAGE_URL : false // true: タイムラインの画像を orig 画像と差し替え
+,   HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY : true // true: ダウンロードボタンを自動的に隠す(オーバーレイ表示時)
 
 ,   OPERATION : true // true: 動作中、false: 停止中
 
@@ -1582,15 +1583,18 @@ function initialize( user_options ) {
                 
                 download_link_container_template.className = 'download-link-container';
                 download_link_container_style.margin = '0 0 1px 0';
-                download_link_container_style.opacity = '1.0';
-                download_link_container_style.transition = 'opacity .5s ease-in-out';
-                download_link_container_style.position = 'absolute';
-                download_link_container_style.top = '0';
-                download_link_container_style.left = '0';
-                download_link_container_style.background = 'rgba( 0, 0, 0, 0.5 )';
-                download_link_container_style.width = '100%';
-                //download_link_container_style.height = '50%';
-                download_link_container_style.minHeight = '50px';
+                
+                if ( OPTIONS.HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY ) {
+                    download_link_container_style.opacity = '1.0';
+                    download_link_container_style.transition = 'opacity .5s ease-in-out';
+                    download_link_container_style.position = 'absolute';
+                    download_link_container_style.top = '0';
+                    download_link_container_style.left = '0';
+                    download_link_container_style.background = 'rgba( 0, 0, 0, 0.5 )';
+                    download_link_container_style.width = '100%';
+                    //download_link_container_style.height = '50%';
+                    download_link_container_style.minHeight = '50px';
+                }
                 
                 return download_link_container_template;
             } )(),
@@ -2303,25 +2307,28 @@ function initialize( user_options ) {
                         mouse_click.stop();
                     } );
                     
-                    add_event( download_link_container, 'mouseover', function ( event ) {
-                        download_link_container.style.opacity = '1.0';
-                    } );
                     
-                    add_event( download_link_container, 'mousemove', function ( event ) {
-                        download_link_container.style.opacity = '1.0';
-                    } );
-                    
-                    add_event( download_link_container, 'mouseout', function ( event ) {
+                    if ( OPTIONS.HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY ) {
+                        add_event( download_link_container, 'mouseover', function ( event ) {
+                            download_link_container.style.opacity = '1.0';
+                        } );
+                        
+                        add_event( download_link_container, 'mousemove', function ( event ) {
+                            download_link_container.style.opacity = '1.0';
+                        } );
+                        
+                        add_event( download_link_container, 'mouseout', function ( event ) {
+                            download_link_container.style.opacity = '0';
+                        } );
+                        
+                        object_extender( MouseClick ).init( download_link_container ).start( function ( event ) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            return false;
+                        } );
+                        
                         download_link_container.style.opacity = '0';
-                    } );
-                    
-                    object_extender( MouseClick ).init( download_link_container ).start( function ( event ) {
-                        event.stopPropagation();
-                        event.preventDefault();
-                        return false;
-                    } );
-                    
-                    download_link_container.style.opacity = '0';
+                    }
                     
                     download_link_container.appendChild( download_link );
                     img_link_container.appendChild( download_link_container );

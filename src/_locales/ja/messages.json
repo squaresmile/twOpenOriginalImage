@@ -74,4 +74,7 @@
 ,   "UNDER_SUSPENSION" : {
         "message" : "停止中"
     }
+,   "HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY" : {
+        "message" : "ダウンロードボタンを自動的に隠す(オーバーレイ時)"
+    }
 }

@@ -48,7 +48,7 @@
         "message" : "Display image on click thumbnail of tweet"
     }
 ,   "SWAP_IMAGE_URL" : {
-        "message" : "Replace images on  timeline with original-sized ones"
+        "message" : "Replace images on timeline with original-sized ones"
     }
 ,   "DISPLAY_ORIGINAL_BUTTONS" : {
         "message" : "Display buttons"
@@ -73,5 +73,8 @@
     }
 ,   "UNDER_SUSPENSION" : {
         "message" : "Under suspension"
+    }
+,   "HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY" : {
+        "message" : "Hide download button automatically (on Overlay mode)"
     }
 }

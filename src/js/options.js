@@ -24,6 +24,7 @@ $().ready( function () {
         ,   { key : 'OVERRIDE_GALLERY_FOR_TWEETDECK', val : true }
         ,   { key : 'DOWNLOAD_HELPER_SCRIPT_IS_VALID', val : true }
         ,   { key : 'SWAP_IMAGE_URL', val : false }
+        ,   { key : 'HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY', val : true }
         ],
         INT_KV_LIST = [
             //{ key : 'WAIT_AFTER_OPENPAGE', val : 500, min : 0, max : null }

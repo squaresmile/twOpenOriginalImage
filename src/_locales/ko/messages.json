@@ -74,4 +74,7 @@
 ,   "UNDER_SUSPENSION" : {
         "message" : "정지중"
     }
+,   "HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY" : {
+        "message" : "자동으로 다운로드 버튼 숨기기 (오버레이 모드에서)"
+    }
 }
