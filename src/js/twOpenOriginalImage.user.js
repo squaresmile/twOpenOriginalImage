@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.26
+// @version         0.1.7.27
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -2750,7 +2750,8 @@ function initialize( user_options ) {
                 function adjust_last_image_link_container() {
                     var image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) );
                     
-                    if ( image_link_containers.length <= 0 ) {
+                    if ( image_link_containers.length < 2 ) {
+                        // 1 枚しかない場合は調節しない（横幅調整時、画面内に収まる時でも縦スクロールバーが出てしまうのを防ぐため）
                         return;
                     }
                     
