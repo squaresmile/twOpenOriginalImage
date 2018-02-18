@@ -77,4 +77,7 @@
 ,   "HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY" : {
         "message" : "Hide download button automatically (on Overlay mode)"
     }
+,   "SUPPRESS_FILENAME_SUFFIX" : {
+        "message" : "Suppress suffix (e.g. -orig) of filename"
+    }
 }

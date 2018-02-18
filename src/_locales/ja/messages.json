@@ -77,4 +77,7 @@
 ,   "HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY" : {
         "message" : "ダウンロードボタンを自動的に隠す(オーバーレイ時)"
     }
+,   "SUPPRESS_FILENAME_SUFFIX" : {
+        "message" : "ファイル名の接尾辞(-orig等)抑制"
+    }
 }

@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.25
+// @version         0.1.7.26
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -92,6 +92,7 @@ var OPTIONS = {
 ,   DOWNLOAD_ZIP_IS_VALID : true // true: ZIPダウンロード有効
 ,   SWAP_IMAGE_URL : false // true: タイムラインの画像を orig 画像と差し替え
 ,   HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY : true // true: ダウンロードボタンを自動的に隠す(オーバーレイ表示時)
+,   SUPPRESS_FILENAME_SUFFIX : false // true : ファイル名の接尾辞(-orig等)抑制
 
 ,   OPERATION : true // true: 動作中、false: 停止中
 
@@ -646,7 +647,20 @@ function get_img_url_orig( img_url ) {
 function get_img_filename( img_url ) {
     img_url = normalize_img_url( img_url );
     
-    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+    if ( ! img_url.match( /^.+\/([^\/.]+)\.(\w+):(\w+)$/ ) ) {
+        return img_url;
+    }
+    
+    var base = RegExp.$1,
+        ext = RegExp.$2,
+        suffix = RegExp.$3;
+    
+    if ( OPTIONS.SUPPRESS_FILENAME_SUFFIX ) {
+        return base + '.' + ext;
+    }
+    else {
+        return base + '-' + suffix + '.' + ext;
+    }
 } // end of get_img_filename()
 
 

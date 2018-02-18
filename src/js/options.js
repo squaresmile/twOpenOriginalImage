@@ -25,6 +25,7 @@ $().ready( function () {
         ,   { key : 'DOWNLOAD_HELPER_SCRIPT_IS_VALID', val : true }
         ,   { key : 'SWAP_IMAGE_URL', val : false }
         ,   { key : 'HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY', val : true }
+        ,   { key : 'SUPPRESS_FILENAME_SUFFIX', val : false }
         ],
         INT_KV_LIST = [
             //{ key : 'WAIT_AFTER_OPENPAGE', val : 500, min : 0, max : null }

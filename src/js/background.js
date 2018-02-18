@@ -7,19 +7,49 @@ w.chrome = ( ( typeof browser != 'undefined' ) && browser.runtime ) ? browser : 
 
 var DEBUG = false,
     
+    SCRIPT_NAME = 'twOpenOriginalImage',
+    
     CONTEXT_MENU_INITIALIZED = false,
     CONTEXT_MENU_IS_VISIBLE = true,
     CONTEXT_MENU_IS_SUSPENDED = false,
+    SUPPRESS_FILENAME_SUFFIX = false,
     
     DOWNLOAD_MENU_ID = 'download_image';
+
+
+if ( typeof console.log.apply == 'undefined' ) {
+    // MS-Edge 拡張機能では console.log.apply 等が undefined
+    // → apply できるようにパッチをあてる
+    // ※参考：[javascript - console.log.apply not working in IE9 - Stack Overflow](https://stackoverflow.com/questions/5538972/console-log-apply-not-working-in-ie9)
+    
+    [ 'log', 'info', 'warn', 'error', 'assert', 'dir', 'clear', 'profile', 'profileEnd' ].forEach( function ( method ) {
+        console[ method ] = this.bind( console[ method ], console );
+    }, Function.prototype.call );
+    
+    console.log( 'note: console.log.apply is undefined => patched' );
+}
+
+
+function to_array( array_like_object ) {
+    return Array.prototype.slice.call( array_like_object );
+} // end of to_array()
 
 
 function log_debug() {
     if ( ! DEBUG ) {
         return;
     }
-    console.log.apply( console, arguments );
+    var arg_list = [ '[' + SCRIPT_NAME + ']', '(' + ( new Date().toISOString() ) + ')' ];
+    
+    console.log.apply( console, arg_list.concat( to_array( arguments ) ) );
 } // end of log_debug()
+
+
+function log_error() {
+    var arg_list = [ '[' + SCRIPT_NAME + ']', '(' + ( new Date().toISOString() ) + ')' ];
+    
+    console.error.apply( console, arg_list.concat( to_array( arguments ) ) );
+} // end of log_error()
 
 
 var is_firefox = ( function () {
@@ -62,6 +92,8 @@ function update_context_menu_flags() {
     CONTEXT_MENU_IS_SUSPENDED = ! operation;
     
     log_debug( 'CONTEXT_MENU_IS_VISIBLE:', CONTEXT_MENU_IS_VISIBLE, 'CONTEXT_MENU_IS_SUSPENDED:', CONTEXT_MENU_IS_SUSPENDED );
+    
+    SUPPRESS_FILENAME_SUFFIX = ( get_bool( localStorage[ 'SUPPRESS_FILENAME_SUFFIX' ] ) === true ) ? true : false;
 } // end of update_context_menu_flags()
 
 
@@ -102,7 +134,21 @@ function get_filename_from_image_url( img_url ) {
     if ( ! /:\w*$/.test( img_url ) ) {
         return null;
     }
-    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+    
+    if ( ! img_url.match( /^.+\/([^\/.]+)\.(\w+):(\w+)$/ ) ) {
+        return img_url;
+    }
+    
+    var base = RegExp.$1,
+        ext = RegExp.$2,
+        suffix = RegExp.$3;
+    
+    if ( SUPPRESS_FILENAME_SUFFIX ) {
+        return base + '.' + ext;
+    }
+    else {
+        return base + '-' + suffix + '.' + ext;
+    }
 } // end of get_filename_from_image_url()
 
 
@@ -129,16 +175,6 @@ function download_image( img_url ) {
     //,   filename : filename
     //} );
     
-    if ( is_firefox() && /\.png$/i.test( filename ) ) {
-        // TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
-        // → 暫定的に PNG のみ、chrome.downloads.download() を使う
-        chrome.downloads.download( {
-            url : img_url_orig
-        ,   filename : filename
-        } );
-        return;
-    }
-    
     var xhr = new XMLHttpRequest();
     
     xhr.open( 'GET', img_url_orig, true );
@@ -149,9 +185,22 @@ function download_image( img_url ) {
         }
         
         var blob = xhr.response,
-            download_link = d.createElement( 'a' );
+            blob_url = URL.createObjectURL( blob );
         
-        download_link.href = URL.createObjectURL( blob );
+        if ( is_firefox() ) {
+            // Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+            // ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
+            // → 新規にタブを開いてダウンロード処理を行う
+            chrome.tabs.create( {
+                url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
+                active : false
+            } );
+            return;
+        }
+        
+        var download_link = d.createElement( 'a' );
+        
+        download_link.href = blob_url;
         download_link.download = filename;
         
         d.documentElement.appendChild( download_link );
@@ -269,7 +318,7 @@ function initialize( eventname ) {
     catch( error ) {
         // TODO: try～catch にも引っかからない模様
         // 参考: [Issue 551912 - chromium - Try/Catch not working when trying to create existing menu](https://code.google.com/p/chromium/issues/detail?id=551912)
-        console.error( error );
+        log_error( error );
     }
     
 } // end of initialize()
@@ -300,6 +349,16 @@ function on_message( message, sender, sendResponse ) {
         
         case 'RESET_CONTEXT_MENU':
             initialize( 'onMessage' );
+            break;
+        
+        case 'CLOSE_TAB_REQUEST':
+            chrome.tabs.remove( sender.tab.id )
+                .then( function () {
+                    log_debug( type, 'OK' );
+                } )
+                .catch( function ( error ) {
+                    log_error( type, error );
+                } );
             break;
         
         default:
