@@ -110,36 +110,40 @@ var OPTIONS = {
 
 // 共通変数
 var DEBUG = false,
-
-    is_tweetdeck = ( function () {
-        var flag = ( !! ( w.location.href.match( /^https?:\/\/tweetdeck\.twitter\.com/ ) ) );
-        
-        return function () {
-            return flag;
+    
+    make_is_url_function = function ( reg_url ) {
+        return function ( url ) {
+            if ( ! url ) {
+                url = w.location.href;
+            }
+            return reg_url.test( url );
         };
-    } )(), // end of is_tweetdeck()
+    }, // end of make_is_url_function()
+    
+    is_twitter = make_is_url_function( /^https?:\/\/twitter\.com\// ),
+    is_tweetdeck = make_is_url_function( /^https?:\/\/tweetdeck\.twitter\.com\// ),
+    is_media_url = make_is_url_function( /^https?:\/\/pbs\.twimg\.com\/media\// ),
     
     LANGUAGE = ( function () {
-        if ( is_tweetdeck() ) {
-            try{
-                return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
+        var lang = 'en';
+        
+        try {
+            // デフォルトはブラウザの設定を使用
+            lang = ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
+        }
+        catch ( error ) {
+        }
+        
+        if ( is_twitter() ) {
+            try {
+                // twitter.com の場合は、サイトの言語設定に従う
+                lang = d.querySelector( 'html' ).getAttribute( 'lang' );
             }
             catch ( error ) {
-                return 'en';
             }
         }
         
-        try {
-            return d.querySelector( 'html' ).getAttribute( 'lang' );
-        }
-        catch ( error ) {
-            try{
-                return ( w.navigator.browserLanguage || w.navigator.language || w.navigator.userLanguage ).substr( 0, 2 );
-            }
-            catch ( error ) {
-                return 'en';
-            }
-        }
+        return lang;
     } )();
 
 switch ( LANGUAGE ) {
@@ -1005,7 +1009,7 @@ function download_zip( tweet_info_json ) {
     
     
     img_urls.forEach( function ( img_url ) {
-        if ( ( ! /^https?:\/\/pbs\.twimg\.com\/media\//.test( img_url ) ) || ( img_url == get_img_filename( img_url ) ) ) {
+        if ( ( ! is_media_url( img_url ) ) || ( img_url == get_img_filename( img_url ) ) ) {
             return;
         }
         
@@ -1051,7 +1055,7 @@ function download_zip( tweet_info_json ) {
 
 
 function initialize_download_helper() {
-    if ( ! ( w.location.href.match( /^https?:\/\/pbs\.twimg\.com\/media\// ) ) ) {
+    if ( ! is_media_url() ) {
         return false;
     }
     
@@ -3748,12 +3752,12 @@ function initialize( user_options ) {
             ];
         
         if ( is_tweetdeck() ) {
-            css_rule_lines.push( button_selector + '{margin:8px 0 8px 0; padding: 0 8px;border-radius:12px; font-size:11px;}' );
-            css_rule_lines.push( 'html.dark ' + button_selector + ', #open-modal ' + button_selector + '{background:transparent;}' );
-            css_rule_lines.push( 'html.dark ' + button_selector + ':hover, #open-modal ' + button_selector + ':hover{background:#183142;}' );
+            css_rule_lines.push( button_selector + '{margin: 8px 0 8px 0; padding: 0 8px; border-radius: 12px; font-size: 11px;}' );
+            css_rule_lines.push( 'html.dark ' + button_selector + ', #open-modal ' + button_selector + '{background: transparent;}' );
+            css_rule_lines.push( 'html.dark ' + button_selector + ':hover, #open-modal ' + button_selector + ':hover{background: #183142;}' );
         }
         else {
-            css_rule_lines.push( button_selector + '{font-size:13px;}' );
+            css_rule_lines.push( button_selector + '{font-size: 12px;}' );
             // TODO: [夜間モード対応] TweetDeck の場合 html.dark で判別がつく一方、Twitter の場合 CSS ファイルそのものを入れ替えている→ CSSルールでの切替困難
         }
         
