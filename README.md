@@ -30,7 +30,7 @@ Firefox Quantum で、
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
 Firefox＋<s>[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonkey/)</s>[Tampermonkey](https://addons.mozilla.org/ja/firefox/addon/tampermonkey/)、Google Chrome＋[Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja)、あるいは Opera＋[Tampermonkey](https://addons.opera.com/ja/extensions/details/tampermonkey-beta/?display=en)の環境で、  
 
-> [Twitter 原寸びゅー(twOpenOriginalImage.user.js)](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twOpenOriginalImage.user.js)  
+> [Twitter 原寸びゅー(twOpenOriginalImage.user.js)](https://furyu.atnifty.com/userjs/furyutei/twOpenOriginalImage.user.js)  
                                 
 をクリックし、指示に従ってインストール。  
 
