@@ -187,29 +187,30 @@ function download_image( img_url ) {
         var blob = xhr.response,
             blob_url = URL.createObjectURL( blob );
         
-        if ( is_firefox() ) {
-            // Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
-            // ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
-            // → 新規にタブを開いてダウンロード処理を行う
-            chrome.tabs.create( {
-                url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
-                active : false
-            } );
-            return;
-        }
+        // - Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+        //   ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
+        // - Chrome で、background 内での a[download] によるダウンロードがうまく行かなくなった(バージョン: 65.0.3325.162)
+        // → 新規にタブを開いてダウンロード処理を行う
+        chrome.tabs.create( {
+            url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
+            active : false
+        } );
+        return;
         
-        var download_link = d.createElement( 'a' );
-        
-        download_link.href = blob_url;
-        download_link.download = filename;
-        
-        d.documentElement.appendChild( download_link );
-        
-        download_link.click();
-        // TODO: MS-Edge 拡張機能の場合、ダウンロードされない
-        // TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
-        
-        download_link.parentNode.removeChild( download_link );
+        /*
+        //var download_link = d.createElement( 'a' );
+        //
+        //download_link.href = blob_url;
+        //download_link.download = filename;
+        //
+        //d.documentElement.appendChild( download_link );
+        //
+        //download_link.click();
+        //// TODO: MS-Edge 拡張機能の場合、ダウンロードされない
+        //// TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+        //
+        //download_link.parentNode.removeChild( download_link );
+        */
     };
     xhr.onerror = function () {
         chrome.downloads.download( {
@@ -352,13 +353,14 @@ function on_message( message, sender, sendResponse ) {
             break;
         
         case 'CLOSE_TAB_REQUEST':
-            chrome.tabs.remove( sender.tab.id )
-                .then( function () {
+            try {
+                chrome.tabs.remove( sender.tab.id, function () {
                     log_debug( type, 'OK' );
                 } )
-                .catch( function ( error ) {
-                    log_error( type, error );
-                } );
+            }
+            catch ( error ) {
+                log_error( type, error );
+            }
             break;
         
         default:

@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.27
+// @version         0.1.7.28
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -66,12 +66,30 @@ THE SOFTWARE.
 'use strict';
 
 var SCRIPT_NAME = 'twOpenOriginalImage',
-    SCRIPT_NAME_JA = '原寸びゅー';
+    SCRIPT_NAME_JA = '原寸びゅー',
+    
+    IS_TOUCHED = ( function () {
+        var touched_id = SCRIPT_NAME + '_touched',
+            touched_element = d.querySelector( '#' + touched_id );
+        
+        if ( touched_element ) {
+            return true;
+        }
+        
+        touched_element = d.createElement( 'b' );
+        touched_element.id = touched_id;
+        touched_element.style.display = 'none';
+        
+        d.documentElement.appendChild( touched_element );
+        
+        return false;
+    } )();
 
-if ( w[ SCRIPT_NAME + '_touched' ] ) {
+if ( IS_TOUCHED ) {
+    console.error( SCRIPT_NAME + ': Already loaded.' );
     return;
 }
-w[ SCRIPT_NAME + '_touched' ] = true;
+    
 
 if ( /^https:\/\/twitter\.com\/i\/cards/.test( w.location.href ) ) {
     // https://twitter.com/i/cards/～ では実行しない
@@ -934,6 +952,12 @@ function download_zip( tweet_info_json ) {
             d.documentElement.appendChild( download_button );
             
             download_button.click();
+            // TODO: src を画像のURL(https://pbs.twimg.com/media/*)としたIFRAME 内では、なぜかダウンロードではなく、ページ遷移されてしまい、
+            //   その上で、CSPエラーとなってしまう(Chrome 65.0.3325.162)
+            //   Refused to frame '' because it violates the following Content Security Policy directive: "frame-src 'self' https://staticxx.facebook.com https://twitter.com https://*.twimg.com 
+            //     https://5415703.fls.doubleclick.net https://player.vimeo.com https://pay.twitter.com https://www.facebook.com https://ton.twitter.com https://syndication.twitter.com 
+            //     https://vine.co twitter: https://www.youtube.com https://platform.twitter.com https://upload.twitter.com https://s-static.ak.facebook.com https://4337974.fls.doubleclick.net 
+            //     https://8122179.fls.doubleclick.net https://donate.twitter.com".
             
             download_button.parentNode.removeChild( download_button );
         } // end of _save()
@@ -1987,36 +2011,45 @@ function initialize( user_options ) {
                                 ,   timestamp_ms : image_overlay_close_link.getAttribute( 'data-timestamp-ms' )
                                 } );
                             
-                            if (
-                                is_firefox() ||
-                                // TODO: Firefox の場合、IFRAME 経由で呼び出すと、ダウンロード用の a#href に blob:～ を入れた時点で CSP に引っかかってしまう
-                                // →対策として、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
-                                is_edge()
-                                // TODO: MS-Edge ＋ Tampermonkey の場合、IFRAME 経由で呼び出すと、window.name の値が読めない
-                                // → Firefox と同じく、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
-                            ) {
-                                
-                                if ( typeof GM_xmlhttpRequest == 'function' ) {
-                                    download_zip( tweet_info_json );
-                                }
-                                else {
-                                    w.open( img_urls[ 0 ], encodeURIComponent( tweet_info_json ) );
-                                }
-                                return false;
-                            }
+                            // TODO: Chrome でも IFRAME 経由の呼び出しが CSP にひっかかるようになってしまった(Chrome 65.0.3325.162)
+                            // ※(srcを画像のURL(https://pbs.twimg.com/media/*)とした)IFRAME内で、a[download]にて Blob URL を指定してダウンロードしようとすると、CSPエラー発生
+                            // →主要ブラウザでは XMLHttpRequest Level 2 対応しているため、直接呼び出し
+                            download_zip( tweet_info_json );
                             
-                            var old_iframe = d.querySelector( 'iframe#' + SCRIPT_NAME + '_download_zip_frame' ),
-                                iframe = import_node( download_frame_template );
+                            return;
                             
-                            
-                            if ( old_iframe ) {
-                                old_iframe.parentNode.removeChild( old_iframe );
-                                old_iframe = null;
-                            }
-                            iframe.id = SCRIPT_NAME + '_download_zip_frame';
-                            iframe.name = encodeURIComponent( tweet_info_json );
-                            iframe.src = img_urls[ 0 ];
-                            d.documentElement.appendChild( iframe );
+                            /*
+                            //if (
+                            //    is_firefox() ||
+                            //    // TODO: Firefox の場合、IFRAME 経由で呼び出すと、ダウンロード用の a#href に blob:～ を入れた時点で CSP に引っかかってしまう
+                            //    // →対策として、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
+                            //    is_edge()
+                            //    // TODO: MS-Edge ＋ Tampermonkey の場合、IFRAME 経由で呼び出すと、window.name の値が読めない
+                            //    // → Firefox と同じく、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
+                            //) {
+                            //    
+                            //    if ( typeof GM_xmlhttpRequest == 'function' ) {
+                            //        download_zip( tweet_info_json );
+                            //    }
+                            //    else {
+                            //        w.open( img_urls[ 0 ], encodeURIComponent( tweet_info_json ) );
+                            //    }
+                            //    return false;
+                            //}
+                            //
+                            //var old_iframe = d.querySelector( 'iframe#' + SCRIPT_NAME + '_download_zip_frame' ),
+                            //    iframe = import_node( download_frame_template );
+                            //
+                            //
+                            //if ( old_iframe ) {
+                            //    old_iframe.parentNode.removeChild( old_iframe );
+                            //    old_iframe = null;
+                            //}
+                            //iframe.id = SCRIPT_NAME + '_download_zip_frame';
+                            //iframe.name = encodeURIComponent( tweet_info_json );
+                            //iframe.src = img_urls[ 0 ];
+                            //d.documentElement.appendChild( iframe );
+                            */
                         } // end of image_overlay_container_download_image_zip()
                         
                         
