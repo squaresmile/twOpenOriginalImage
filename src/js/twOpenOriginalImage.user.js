@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.28
+// @version         0.1.7.29
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1037,7 +1037,8 @@ function download_zip( tweet_info_json ) {
                 save_blob( zip_filename, zip_content );
             }
             
-            if ( w.opener && ( w === top ) ) {
+            if ( w.opener && ( w === top ) && ( /^https?:\/\/pbs\.twimg\.com\/media\//.test( w.location.href ) ) ) {
+                // ダウンロード用に開かれた window を閉じる
                 setTimeout( function () {
                     w.close();
                 }, 1000 );

@@ -356,7 +356,7 @@ function on_message( message, sender, sendResponse ) {
             try {
                 chrome.tabs.remove( sender.tab.id, function () {
                     log_debug( type, 'OK' );
-                } )
+                } );
             }
             catch ( error ) {
                 log_error( type, error );
