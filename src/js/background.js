@@ -70,6 +70,15 @@ var is_edge = ( function () {
 } )(); // end of is_edge()
 
 
+var is_vivaldi = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'vivaldi' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_vivaldi()
+
+
 function get_bool( value ) {
     if ( value === undefined ) {
         return null;
@@ -186,6 +195,24 @@ function download_image( img_url ) {
         
         var blob = xhr.response,
             blob_url = URL.createObjectURL( blob );
+        
+        
+        if ( is_vivaldi() ) {
+            // TODO: Vivaldi だと、新規タブからダウンロードする方法では動作が不安定になる
+            // →とりあえず旧来の方法でしのぐようにする
+            
+            var download_link = d.createElement( 'a' );
+            
+            download_link.href = blob_url;
+            download_link.download = filename;
+            
+            d.documentElement.appendChild( download_link );
+            
+            download_link.click();
+            
+            download_link.parentNode.removeChild( download_link );
+            return;
+        }
         
         // - Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
         //   ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
