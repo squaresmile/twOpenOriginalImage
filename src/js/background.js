@@ -14,7 +14,10 @@ var DEBUG = false,
     CONTEXT_MENU_IS_SUSPENDED = false,
     SUPPRESS_FILENAME_SUFFIX = false,
     
-    DOWNLOAD_MENU_ID = 'download_image';
+    DOWNLOAD_MENU_ID = 'download_image',
+    
+    DOWNLOAD_TAB_MAP_NAME = SCRIPT_NAME + '-download_tab_map';
+    
 
 
 if ( typeof console.log.apply == 'undefined' ) {
@@ -139,6 +142,22 @@ function normalize_img_url( source_url ) {
 } // end of normalize_img_url()
 
 
+function get_formatted_img_url( normalized_img_url ) {
+    var formatted_img_url;
+    
+    if ( normalized_img_url.match( /^(.+)\.([^.:]+):?((?:[^:]+)?)$/ ) ) {
+        formatted_img_url = RegExp.$1 + '?format=' + RegExp.$2 + ( ( RegExp.$3 ) ? '&name=' + RegExp.$3 : '' );
+    }
+    else {
+        formatted_img_url = normalized_img_url;
+    }
+    
+    log_debug( 'formatted_img_url=', formatted_img_url, normalized_img_url );
+    
+    return formatted_img_url;
+} // end of get_formatted_img_url()
+
+
 function get_filename_from_image_url( img_url ) {
     if ( ! /:\w*$/.test( img_url ) ) {
         return null;
@@ -161,11 +180,47 @@ function get_filename_from_image_url( img_url ) {
 } // end of get_filename_from_image_url()
 
 
+function set_values( name_value_map, callback ) {
+    return new Promise( function ( resolve, reject ) {
+        chrome.storage.local.set( name_value_map, function () {
+            if ( typeof callback == 'function' ) {
+                callback();
+            }
+            resolve();
+        } );
+    } );
+} // end of set_values()
+
+
+function get_values( name_list, callback ) {
+    return new Promise( function ( resolve, reject ) {
+        if ( typeof name_list == 'string' ) {
+            name_list = [ name_list ];
+        }
+        
+        chrome.storage.local.get( name_list, function ( name_value_map ) {
+            name_list.forEach( function ( name ) {
+                if ( name_value_map[ name ] === undefined ) {
+                    name_value_map[ name ] = null;
+                }
+            } );
+            
+            if ( typeof callback == 'function' ) {
+                callback( name_value_map );
+            }
+            resolve( name_value_map );
+        } );
+    } );
+} // end of get_values()
+
+
 function download_image( img_url ) {
     img_url = normalize_img_url( img_url );
     
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
         filename = get_filename_from_image_url( img_url_orig );
+    
+    img_url_orig = get_formatted_img_url( img_url_orig );
     
     log_debug( '*** download_image():', img_url, img_url_orig, filename );
     
@@ -184,6 +239,17 @@ function download_image( img_url ) {
     //,   filename : filename
     //} );
     
+    if ( is_vivaldi() ) {
+        // TODO: Vivaldi 1.15.1147.36 (Stable channel) (32-bit)・V8 6.5.254.41 での動作がおかしい（仕様変更？）
+        // - a[download]作成→click() だと、ページ遷移になってしまう
+        // - chrome.downloads.download() でファイル名が変更できない
+        chrome.downloads.download( {
+            url : img_url_orig,
+            filename : filename
+        } );
+        return;
+    }
+    
     var xhr = new XMLHttpRequest();
     
     xhr.open( 'GET', img_url_orig, true );
@@ -197,23 +263,6 @@ function download_image( img_url ) {
             blob_url = URL.createObjectURL( blob );
         
         
-        if ( is_vivaldi() ) {
-            // TODO: Vivaldi だと、新規タブからダウンロードする方法では動作が不安定になる
-            // →とりあえず旧来の方法でしのぐようにする
-            
-            var download_link = d.createElement( 'a' );
-            
-            download_link.href = blob_url;
-            download_link.download = filename;
-            
-            d.documentElement.appendChild( download_link );
-            
-            download_link.click();
-            
-            download_link.parentNode.removeChild( download_link );
-            return;
-        }
-        
         // - Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
         //   ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
         // - Chrome で、background 内での a[download] によるダウンロードがうまく行かなくなった(バージョン: 65.0.3325.162)
@@ -221,6 +270,21 @@ function download_image( img_url ) {
         chrome.tabs.create( {
             url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
             active : false
+        }, function ( tab ) {
+            get_values( [ DOWNLOAD_TAB_MAP_NAME ] )
+            .then( function ( name_value_map ) {
+                var download_tab_map = name_value_map[ DOWNLOAD_TAB_MAP_NAME ];
+                
+                if ( ! download_tab_map ) {
+                    download_tab_map = {};
+                }
+                
+                download_tab_map[ blob_url ] = tab.id;
+                
+                set_values( {
+                    [ DOWNLOAD_TAB_MAP_NAME ] : download_tab_map
+                } );
+            } );
         } );
         return;
         
@@ -273,6 +337,66 @@ function on_determining_filename( downloadItem, suggest ) {
     } );
     return true;
 } // end of on_determining_filename()
+
+
+function on_changed( downloadDelta ) {
+    if ( ! downloadDelta || ! downloadDelta.state ) {
+        return;
+    }
+    
+    switch ( downloadDelta.state.current ) {
+        case 'complete' : // ダウンロード完了時
+            break;
+        
+        case 'interrupted' : // ダウンロードキャンセル時（downloadDelta.error.current = "USER_CANCELED" ）等
+            // ※ Firefox の場合には、ダウンロードキャンセル時にイベントが発生しない
+            break;
+        
+        default :
+            return;
+    }
+    
+    chrome.downloads.search({
+        id : downloadDelta.id
+    }, function ( results ) {
+        if ( ! results || results.length <= 0 ) {
+            return;
+        }
+        
+        get_values( [ DOWNLOAD_TAB_MAP_NAME ] )
+        .then( function ( name_value_map ) {
+            var download_tab_map = name_value_map[ DOWNLOAD_TAB_MAP_NAME ];
+            
+            if ( ! download_tab_map ) {
+                return;
+            }
+            
+            results.forEach( function ( download_info ) {
+                var tab_id = download_tab_map[ download_info.url ];
+                
+                if ( ! tab_id ) {
+                    return;
+                }
+                
+                delete download_tab_map[ download_info.url ];
+                
+                try {
+                    chrome.tabs.remove( tab_id, function () {
+                        log_debug( 'removed: tab_id=', tab_id );
+                    } );
+                }
+                catch ( error ) {
+                    log_error( 'remove error: tab_id=', tab_id, error );
+                }
+            } );
+            
+            set_values( {
+                [ DOWNLOAD_TAB_MAP_NAME ] : download_tab_map
+            } );
+        } );
+        
+    } );
+} // end of on_changed()
 
 
 function initialize( eventname ) {
@@ -380,13 +504,16 @@ function on_message( message, sender, sendResponse ) {
             break;
         
         case 'CLOSE_TAB_REQUEST':
-            try {
-                chrome.tabs.remove( sender.tab.id, function () {
-                    log_debug( type, 'OK' );
-                } );
-            }
-            catch ( error ) {
-                log_error( type, error );
+            if ( is_firefox() ) {
+                // Firefox以外では、途中でタブを削除してしまうと、うまくダウンロードできない場合がある
+                try {
+                    chrome.tabs.remove( sender.tab.id, function () {
+                        log_debug( type, 'OK' );
+                    } );
+                }
+                catch ( error ) {
+                    log_error( type, error );
+                }
             }
             break;
         
@@ -452,6 +579,10 @@ if ( chrome.runtime.onStartup ) {
 // DeterminingFilename イベント
 // TODO: 副作用（他拡張機能との競合）が大きいため、保留(0.1.7.1702)
 //chrome.downloads.onDeterminingFilename.addListener( on_determining_filename );
+
+// Changed イベント
+// ※ダウンロード状態を監視して、ダウンロード用に開いたタブを閉じる
+chrome.downloads.onChanged.addListener( on_changed );
 
 } )( window, document );
 
