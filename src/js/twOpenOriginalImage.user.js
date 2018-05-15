@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.29
+// @version         0.1.7.30
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -608,7 +608,11 @@ function normalize_img_url( source_url ) {
         return source_url;
     }
     
-    return base_url + '.' + format + ( ( name ) ? ':' + name : '' );
+    if ( [ 'thumb', 'small', 'medium', 'large', 'orig' ].indexOf( name ) < 0 ) {
+        name = '';
+    }
+    
+    return base_url.replace( /\.[^.]*$/, '' ) + '.' + format + ( ( name ) ? ':' + name : '' );
 } // end of normalize_img_url()
 
 
