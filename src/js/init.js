@@ -103,45 +103,49 @@ var twOpenOriginalImage_chrome_init = ( function() {
 } )(); // end of twOpenOriginalImage_chrome_init()
 
 w.twOpenOriginalImage_chrome_init = twOpenOriginalImage_chrome_init;
-return;
 
 
-/*
-// 0.1.3.0: twImageDownloadHelper.user.js の機能も twOpenOriginalImage.user.js に取り込んだため、無効化
-//if ( w.location.href.match( /^https?:\/\/pbs\.twimg\.com\/media\// ) ) {
-//    var twImageDownloadHelper_chrome_init = ( function() {
-//        var option_name_to_function_map_main = {
-//                OPERATION : get_bool
-//            },
-//            option_name_to_function_map_helper = {
-//                SCRIPT_IS_VALID : get_bool
-//            ,   BUTTON_TEXT : get_text
-//            },
-//            init_main = get_init_function( 'GET_OPTIONS', option_name_to_function_map_main ),
-//            init_helper = get_init_function( 'GET_OPTIONS', option_name_to_function_map_helper, 'DOWNLOAD_HELPER' );
-//        
-//        function twImageDownloadHelper_chrome_init( callback ) {
-//            init_main( function ( user_options ) {
-//                if ( ! user_options.OPERATION ) {
-//                    callback( {
-//                        SCRIPT_IS_VALID : false
-//                    } );
-//                    return;
-//                }
-//                init_helper( function ( user_options ) {
-//                    callback( user_options );
-//                } );
-//            } );
-//        }
-//        
-//        return twImageDownloadHelper_chrome_init;
-//    } )(); // end of twImageDownloadHelper_chrome_init()
-//    
-//    w.twImageDownloadHelper_chrome_init = twImageDownloadHelper_chrome_init;
-//    return;
-//}
-*/
-
+chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse ) {
+    switch ( message.type )  {
+        case 'DOWNLOAD_IMAGE_REQUEST' :
+            if ( ( ! message.img_url_orig ) || ( ! message.filename ) ) {
+                sendResponse( {
+                    result : 'NG',
+                    message : 'parameter error'
+                } );
+                return false;
+            }
+            
+            fetch( message.img_url_orig )
+            .then( ( response ) => response.blob() )
+            .then( ( blob ) => {
+                if ( typeof saveAs == 'function' ) {
+                    saveAs( blob, message.filename );
+                }
+                else {
+                    var link = d.createElement('a');
+                    
+                    link.href = URL.createObjectURL( blob );
+                    link.download = message.filename;
+                    d.documentElement.appendChild( link );
+                    link.click(); // TweetDeck だと、ダウンロードできない（ダウンロードが無効化されるイベントが設定されてしまう）=> saveAs() が有効ならばそちらを使用
+                    d.documentElement.removeChild( link );
+                }
+                sendResponse( {
+                    result : 'OK'
+                } );
+            } ) ;
+            break;
+        
+        default :
+            sendResponse( {
+                result : 'NG',
+                message : 'unknown type'
+            } );
+            return false;
+    }
+    return true;
+} );
 
 } )( window, document );
 

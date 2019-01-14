@@ -82,6 +82,15 @@ var is_vivaldi = ( function () {
 } )(); // end of is_vivaldi()
 
 
+function is_twitter_page( url ) {
+    if ( ! url ) {
+        return false;
+    }
+    
+    return /https?:\/\/(((mobile|tweetdeck)\.)?twitter\.com|pbs\.twimg\.com)\//.test( url );
+} // end of is_twitter_page()
+
+
 function get_bool( value ) {
     if ( value === undefined ) {
         return null;
@@ -214,7 +223,11 @@ function get_values( name_list, callback ) {
 } // end of get_values()
 
 
-function download_image( img_url ) {
+function download_image( info, tab ) {
+    var img_url = info.srcUrl,
+        frame_id = info.frameId,
+        page_url = info.frameUrl || info.pageUrl;
+    
     img_url = normalize_img_url( img_url );
     
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
@@ -224,93 +237,124 @@ function download_image( img_url ) {
     
     log_debug( '*** download_image():', img_url, img_url_orig, filename );
     
-    // ある時点から、ファイル名が変わらなくなった(0.1.7.1000で2017年7月末頃発生・クロスドメインとみなされている模様)
-    //var download_link = d.createElement( 'a' );
-    //download_link.href = img_url_orig;
-    //download_link.download = filename;
-    //d.documentElement.appendChild( download_link );
-    //download_link.click();
-    
-    // 覚書：「Download with Free Download Manager (FDM)」等を使っていると、ここで指定したファイル名が無視される
-    // → DeterminingFilename イベントを監視し、そこでファイル名を指定するように修正(0.1.7.1701)
-    // → イベント監視だと、他の拡張機能との競合が発生するため、別の方法を検討(0.1.7.1702)
-    //chrome.downloads.download( {
-    //    url : img_url_orig
-    //,   filename : filename
-    //} );
-    
-    if ( is_vivaldi() ) {
-        // TODO: Vivaldi 1.15.1147.36 (Stable channel) (32-bit)・V8 6.5.254.41 での動作がおかしい（仕様変更？）
-        // - a[download]作成→click() だと、ページ遷移になってしまう
-        // - chrome.downloads.download() でファイル名が変更できない
-        chrome.downloads.download( {
-            url : img_url_orig,
-            filename : filename
-        } );
-        return;
-    }
-    
-    var xhr = new XMLHttpRequest();
-    
-    xhr.open( 'GET', img_url_orig, true );
-    xhr.responseType = 'blob';
-    xhr.onload = function () {
-        if ( xhr.readyState != 4 ) {
-            return;
-        }
-        
-        var blob = xhr.response,
-            blob_url = URL.createObjectURL( blob );
-        
-        
-        // - Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
-        //   ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
-        // - Chrome で、background 内での a[download] によるダウンロードがうまく行かなくなった(バージョン: 65.0.3325.162)
-        // → 新規にタブを開いてダウンロード処理を行う
-        chrome.tabs.create( {
-            url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
-            active : false
-        }, function ( tab ) {
-            get_values( [ DOWNLOAD_TAB_MAP_NAME ] )
-            .then( function ( name_value_map ) {
-                var download_tab_map = name_value_map[ DOWNLOAD_TAB_MAP_NAME ];
-                
-                if ( ! download_tab_map ) {
-                    download_tab_map = {};
+    var do_download = function () {
+            // ある時点から、ファイル名が変わらなくなった(0.1.7.1000で2017年7月末頃発生・クロスドメインとみなされている模様)
+            //var download_link = d.createElement( 'a' );
+            //download_link.href = img_url_orig;
+            //download_link.download = filename;
+            //d.documentElement.appendChild( download_link );
+            //download_link.click();
+            
+            // 覚書：「Download with Free Download Manager (FDM)」等を使っていると、ここで指定したファイル名が無視される
+            // → DeterminingFilename イベントを監視し、そこでファイル名を指定するように修正(0.1.7.1701)
+            // → イベント監視だと、他の拡張機能との競合が発生するため、別の方法を検討(0.1.7.1702)
+            //chrome.downloads.download( {
+            //    url : img_url_orig
+            //,   filename : filename
+            //} );
+            
+            if ( is_vivaldi() ) {
+                // TODO: Vivaldi 1.15.1147.36 (Stable channel) (32-bit)・V8 6.5.254.41 での動作がおかしい（仕様変更？）
+                // - a[download]作成→click() だと、ページ遷移になってしまう
+                // - chrome.downloads.download() でファイル名が変更できない
+                chrome.downloads.download( {
+                    url : img_url_orig,
+                    filename : filename
+                } );
+                return;
+            }
+            
+            var xhr = new XMLHttpRequest();
+            
+            xhr.open( 'GET', img_url_orig, true );
+            xhr.responseType = 'blob';
+            xhr.onload = function () {
+                if ( xhr.readyState != 4 ) {
+                    return;
                 }
                 
-                download_tab_map[ blob_url ] = tab.id;
+                var blob = xhr.response,
+                    blob_url = URL.createObjectURL( blob );
                 
-                set_values( {
-                    [ DOWNLOAD_TAB_MAP_NAME ] : download_tab_map
+                
+                // - Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+                //   ※おそらく「次のファイルを開こうとしています…このファイルをどのように処理するか選んでください」のダイアログが background からだと呼び出せないのだと思われる
+                // - Chrome で、background 内での a[download] によるダウンロードがうまく行かなくなった(バージョン: 65.0.3325.162)
+                // → 新規にタブを開いてダウンロード処理を行う
+                chrome.tabs.create( {
+                    url : 'html/download.html?url=' + encodeURIComponent( blob_url ) + '&filename=' + encodeURIComponent( filename ),
+                    active : false
+                }, function ( tab ) {
+                    get_values( [ DOWNLOAD_TAB_MAP_NAME ] )
+                    .then( function ( name_value_map ) {
+                        var download_tab_map = name_value_map[ DOWNLOAD_TAB_MAP_NAME ];
+                        
+                        if ( ! download_tab_map ) {
+                            download_tab_map = {};
+                        }
+                        
+                        download_tab_map[ blob_url ] = tab.id;
+                        
+                        set_values( {
+                            [ DOWNLOAD_TAB_MAP_NAME ] : download_tab_map
+                        } );
+                    } );
                 } );
-            } );
-        } );
-        return;
+                return;
+                
+                /*
+                //var download_link = d.createElement( 'a' );
+                //
+                //download_link.href = blob_url;
+                //download_link.download = filename;
+                //
+                //d.documentElement.appendChild( download_link );
+                //
+                //download_link.click();
+                //// TODO: MS-Edge 拡張機能の場合、ダウンロードされない
+                //// TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
+                //
+                //download_link.parentNode.removeChild( download_link );
+                */
+            };
+            xhr.onerror = function () {
+                chrome.downloads.download( {
+                    url : img_url_orig
+                ,   filename : filename
+                } );
+            };
+            xhr.send();
+        };
+    
+    
+    log_debug( '*** download_image(): info, tab', info, tab );
+    if ( tab && tab.id && is_twitter_page( page_url ) ) {
+        var message = {
+                type : 'DOWNLOAD_IMAGE_REQUEST',
+                img_url : img_url,
+                img_url_orig : img_url_orig,
+                filename : filename
+            },
+            options = {
+                frameId : frame_id
+            };
         
-        /*
-        //var download_link = d.createElement( 'a' );
-        //
-        //download_link.href = blob_url;
-        //download_link.download = filename;
-        //
-        //d.documentElement.appendChild( download_link );
-        //
-        //download_link.click();
-        //// TODO: MS-Edge 拡張機能の場合、ダウンロードされない
-        //// TODO: Firefox WebExtension の場合、XMLHttpRequest / fetch() の結果得た Blob を Blob URL に変換した際、PNG がうまくダウンロードできない
-        //
-        //download_link.parentNode.removeChild( download_link );
-        */
-    };
-    xhr.onerror = function () {
-        chrome.downloads.download( {
-            url : img_url_orig
-        ,   filename : filename
-        } );
-    };
-    xhr.send();
-
+        try {
+            chrome.tabs.sendMessage( tab.id, message, options, function ( response ) {
+                log_debug( '*** download_image(): response', response );
+                
+                if ( ( ! response ) || ( response.result != 'OK' ) ) {
+                    do_download();
+                }
+            } );
+        }
+        catch ( error ) {
+            do_download();
+        }
+    }
+    else {
+        do_download();
+    }
 } // end of download_image()
 
 
@@ -536,7 +580,7 @@ function on_click( info, tab ) {
     
     switch ( info.menuItemId ) {
         case DOWNLOAD_MENU_ID :
-            download_image( info.srcUrl );
+            download_image( info, tab );
             break;
         default :
             break;
