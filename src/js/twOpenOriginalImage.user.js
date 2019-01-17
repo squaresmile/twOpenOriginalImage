@@ -2,9 +2,10 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.32
+// @version         0.1.7.33
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
+// @include         https://mobile.twitter.com/*
 // @include         https://pbs.twimg.com/media/*
 // @include         https://tweetdeck.twitter.com/*
 // @require         https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.4/jszip.min.js
@@ -139,9 +140,12 @@ var DEBUG = false,
         };
     }, // end of make_is_url_function()
     
-    is_twitter = make_is_url_function( /^https?:\/\/twitter\.com\// ),
+    is_twitter = make_is_url_function( /^https?:\/\/(?:mobile\.)?twitter\.com\// ),
     is_tweetdeck = make_is_url_function( /^https?:\/\/tweetdeck\.twitter\.com\// ),
     is_media_url = make_is_url_function( /^https?:\/\/pbs\.twimg\.com\/media\// ),
+    is_react_twitter = function () {
+        return ( is_twitter() && ( !! d.querySelector( 'div#react-root' ) ) );
+    },
     
     LANGUAGE = ( function () {
         var lang = 'en';
@@ -239,6 +243,13 @@ function log_debug() {
     
     console.log.apply( console, arg_list.concat( to_array( arguments ) ) );
 } // end of log_debug()
+
+
+function log_info() {
+    var arg_list = [ '[' + SCRIPT_NAME + ']', '(' + ( new Date().toISOString() ) + ')' ];
+    
+    console.info.apply( console, arg_list.concat( to_array( arguments ) ) );
+} // end of log_info()
 
 
 function log_error() {
@@ -352,12 +363,24 @@ var is_bookmarklet = ( function () {
 
 
 function is_night_mode() {
+    // TweetDeck 用判定
     var html_elem = d.querySelector( 'html' );
-    
     if ( html_elem.classList.contains( 'night_mode' ) || html_elem.classList.contains( 'dark' ) ) {
         return true;
     }
     
+    // 新 Twitter 用判定
+    var header_elem = d.querySelector( 'header[role="banner"]' );
+    if ( header_elem ) {
+        if ( header_elem.querySelector( ':scope > .rn-14lw9ot' ) ) {
+            return false;
+        }
+        else if ( header_elem.querySelector( ':scope > .rn-bie543' ) ) {
+            return true;
+        }
+    }
+    
+    // 旧 Twitter 用判定
     var nightmode_icon = d.querySelector( '#user-dropdown .js-nightmode-icon' );
     if ( ! nightmode_icon ) {
         return false;
@@ -395,6 +418,26 @@ function search_ancestor( node, class_list, contains_self ) {
     return ancestor;
     
 } // end of search_ancestor()
+
+
+function search_ancestor_by_attribute( node, name, value, contains_self ) {
+    var ancestor = null,
+        value_list = Array.isArray( value ) ? value : [ value ];
+    
+    if ( ! contains_self ) {
+        node = node.parentNode;
+    }
+    
+    while ( node && ( node.nodeType == 1 ) ) {
+        if ( 0 <= value_list.indexOf( node.getAttribute( name ) ) ) {
+            ancestor = node;
+            break;
+        }
+        node = node.parentNode;
+    }
+    return ancestor;
+    
+} // end of search_ancestor_by_attribute()
 
 
 function import_node( node, doc ) {
@@ -705,7 +748,7 @@ function get_timestamp_ms_from_tweet_id( tweet_id ) {
 
 
 function get_timestamp_ms_from_tweet_url( tweet_url ) {
-    if ( tweet_url.match( /^(?:https?:\/\/twitter\.com)?\/[^\/]+\/status(?:es)?\/(\d+).*$/ ) ) {
+    if ( tweet_url.match( /^(?:https?:\/\/(?:mobile\.)?twitter\.com)?\/[^\/]+\/status(?:es)?\/(\d+).*$/ ) ) {
         return get_timestamp_ms_from_tweet_id( RegExp.$1 );
     }
     return null;
@@ -726,6 +769,27 @@ function adjust_date_for_zip( date ) {
     // TODO: なぜかタイムスタンプに1秒前後の誤差が出てしまう
     return new Date( date.getTime() - date.getTimezoneOffset() * 60000 );
 } // end of adjust_date_for_zip()
+
+
+function is_tweet_detail_on_react_twitter( tweet ) {
+    return ( tweet.getAttribute( 'data-testid' ) == 'tweetDetail' );
+} // end of is_tweet_detail_on_react_twitter()
+
+
+function get_tweet_link_on_react_twitter( tweet ) {
+    var tweet_link;
+    
+    if ( is_tweet_detail_on_react_twitter( tweet ) ) {
+        tweet_link = tweet.querySelector( '[dir="auto"] > a[role="link"][href^="/"][href*="/status/"]' );
+    }
+    else {
+        var timestamp_container = tweet.querySelector( 'a[role="link"][href^="/"][href*="/status/"] time' );
+        
+        tweet_link = ( timestamp_container ) ? search_ancestor_by_attribute( timestamp_container, 'role', 'link' ) : null;
+    }
+    
+    return tweet_link;
+} // edn of get_tweet_link_on_react_twitter()
 
 
 var DragScroll = {
@@ -890,6 +954,59 @@ var create_download_link = ( function () {
 } )(); // end of create_download_link()
 
 
+function save_blob( filename, blob ) {
+    function _save() {
+        var blob_url = URL.createObjectURL( blob ),
+            download_button = d.createElement( 'a' );
+        
+        download_button.href = blob_url;
+        download_button.download = filename;
+        
+        d.documentElement.appendChild( download_button );
+        
+        download_button.click();
+        // TODO: src を画像のURL(https://pbs.twimg.com/media/*)としたIFRAME 内では、なぜかダウンロードではなく、ページ遷移されてしまい、
+        //   その上で、CSPエラーとなってしまう(Chrome 65.0.3325.162)
+        //   Refused to frame '' because it violates the following Content Security Policy directive: "frame-src 'self' https://staticxx.facebook.com https://twitter.com https://*.twimg.com 
+        //     https://5415703.fls.doubleclick.net https://player.vimeo.com https://pay.twitter.com https://www.facebook.com https://ton.twitter.com https://syndication.twitter.com 
+        //     https://vine.co twitter: https://www.youtube.com https://platform.twitter.com https://upload.twitter.com https://s-static.ak.facebook.com https://4337974.fls.doubleclick.net 
+        //     https://8122179.fls.doubleclick.net https://donate.twitter.com".
+        
+        download_button.parentNode.removeChild( download_button );
+    } // end of _save()
+    
+    if ( typeof saveAs == 'function' ) {
+        try {
+            saveAs( blob, filename );
+        }
+        catch ( error ) {
+            //log_error( error );
+            _save();
+        }
+    }
+    else {
+        _save();
+    }
+} // end of save_blob()
+
+
+function save_base64( filename, base64, mimetype ) {
+    mimetype = ( mimetype ) ? mimetype : 'application/octet-stream';
+    
+    var data_url = 'data:' + mimetype + ';base64,' + base64,
+        download_button = d.createElement( 'a' );
+    
+    download_button.href = data_url;
+    download_button.download = filename;
+    
+    d.documentElement.appendChild( download_button );
+    
+    download_button.click();
+    
+    download_button.parentNode.removeChild( download_button );
+} // end of save_base64()
+
+
 function download_zip( tweet_info_json ) {
     var tweet_info,
         tweet_url,
@@ -919,7 +1036,7 @@ function download_zip( tweet_info_json ) {
     }
     
     var zip = new JSZip(),
-        filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
+        filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
     
     timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url );
     
@@ -948,60 +1065,6 @@ function download_zip( tweet_info_json ) {
             date : zipdate
         } );
     }
-    
-    
-    function save_blob( filename, blob ) {
-        function _save() {
-            var blob_url = URL.createObjectURL( blob ),
-                download_button = d.createElement( 'a' );
-            
-            download_button.href = blob_url;
-            download_button.download = filename;
-            
-            d.documentElement.appendChild( download_button );
-            
-            download_button.click();
-            // TODO: src を画像のURL(https://pbs.twimg.com/media/*)としたIFRAME 内では、なぜかダウンロードではなく、ページ遷移されてしまい、
-            //   その上で、CSPエラーとなってしまう(Chrome 65.0.3325.162)
-            //   Refused to frame '' because it violates the following Content Security Policy directive: "frame-src 'self' https://staticxx.facebook.com https://twitter.com https://*.twimg.com 
-            //     https://5415703.fls.doubleclick.net https://player.vimeo.com https://pay.twitter.com https://www.facebook.com https://ton.twitter.com https://syndication.twitter.com 
-            //     https://vine.co twitter: https://www.youtube.com https://platform.twitter.com https://upload.twitter.com https://s-static.ak.facebook.com https://4337974.fls.doubleclick.net 
-            //     https://8122179.fls.doubleclick.net https://donate.twitter.com".
-            
-            download_button.parentNode.removeChild( download_button );
-        } // end of _save()
-        
-        if ( typeof saveAs == 'function' ) {
-            try {
-                saveAs( blob, filename );
-            }
-            catch ( error ) {
-                //log_error( error );
-                _save();
-            }
-        }
-        else {
-            _save();
-        }
-    } // end of save_blob()
-    
-    
-    function save_base64( filename, base64, mimetype ) {
-        mimetype = ( mimetype ) ? mimetype : 'application/octet-stream';
-        
-        var data_url = 'data:' + mimetype + ';base64,' + base64,
-            download_button = d.createElement( 'a' );
-        
-        download_button.href = data_url;
-        download_button.download = filename;
-        
-        d.documentElement.appendChild( download_button );
-        
-        download_button.click();
-        
-        download_button.parentNode.removeChild( download_button );
-    } // end of save_base64()
-    
     
     function add_img_info( img_url, arrayBuffer ) {
         var img_info = {
@@ -1113,7 +1176,7 @@ function initialize_download_helper() {
     
     var img_url = w.location.href,
         img_referrer = d.referrer,
-        is_child = /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( img_referrer ),
+        is_child = /^https?:\/\/(?:tweetdeck\.|mobile\.)?twitter\.com\//.test( img_referrer ),
         link = ( is_ie() ) ? null : create_download_link( img_url );
     
     if ( link && is_child ) {
@@ -2350,15 +2413,21 @@ function initialize( user_options ) {
                             event.stopPropagation();
                             event.preventDefault();
                             
-                            var old_iframe = target_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
-                                iframe = import_node( download_frame_template, target_document );
+                            /*
+                            //var old_iframe = target_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
+                            //    iframe = import_node( download_frame_template, target_document );
+                            //
+                            //if ( old_iframe ) {
+                            //    target_document.documentElement.removeChild( old_iframe );
+                            //    old_iframe = null;
+                            //}
+                            //iframe.src = img_url;
+                            //target_document.documentElement.appendChild( iframe );
+                            */
                             
-                            if ( old_iframe ) {
-                                target_document.documentElement.removeChild( old_iframe );
-                                old_iframe = null;
-                            }
-                            iframe.src = img_url;
-                            target_document.documentElement.appendChild( iframe );
+                            fetch( download_link.href )
+                            .then( response => response.blob() )
+                            .then( blob => save_blob( download_link.download, blob ) );
                             
                             return false;
                         } );
@@ -2410,7 +2479,13 @@ function initialize( user_options ) {
                 } // end of check_loaded_image()
                 
                 add_event( img, 'load', check_loaded_image );
-                add_event( img, 'error', check_loaded_image );
+                add_event( img, 'error', function ( event ) {
+                    if ( /\.jpg/.test( img.src ) ) {
+                        img.src = img.src.replace( /\.jpg/, '.png' );
+                        return;
+                    }
+                    check_loaded_image( event );
+                });
                 
                 img.src = link.href = img_url;
                 
@@ -2451,14 +2526,30 @@ function initialize( user_options ) {
             
             var html_element = d.querySelector( 'html' ),
                 body = d.body,
-                fullname_container = tweet.querySelector( '.fullname' ),
-                fullname = ( fullname_container ) ? fullname_container.textContent.trim() : '',
-                username_container = tweet.querySelector( '.username' ),
-                username = ( username_container ) ? username_container.textContent.trim() : '',
-                timestamp_container = tweet.querySelector( '*[data-time-ms], time[data-time]' ),
-                timestamp_ms = ( timestamp_container ) ? ( timestamp_container.getAttribute( 'data-time-ms' ) || timestamp_container.getAttribute( 'data-time' ) ) : '',
-                
-                image_overlay_container_style = image_overlay_container.style,
+                fullname_container,
+                fullname,
+                username_container,
+                username,
+                timestamp_container,
+                timestamp_ms;
+            
+            if ( is_react_twitter() ) {
+                fullname_container = tweet.querySelector( 'a[role="link"] [dir="auto"] > span > span[dir="auto"]' );
+                fullname = ( fullname_container ) ? fullname_container.textContent.trim() : '';
+                username_container = ( fullname_container ) ? search_ancestor_by_attribute( fullname_container, 'role', 'link' ) : null;
+                username = ( username_container ) ? new URL( username_container.href ).pathname.replace( /^\//, '' ) : '';
+            }
+            else {
+                fullname_container = tweet.querySelector( '.fullname' );
+                fullname = ( fullname_container ) ? fullname_container.textContent.trim() : '';
+                username_container = tweet.querySelector( '.username' );
+                username = ( username_container ) ? username_container.textContent.trim() : '';
+            }
+            timestamp_container = tweet.querySelector( '*[data-time-ms], time[data-time]' );
+            timestamp_ms = ( timestamp_container ) ? ( timestamp_container.getAttribute( 'data-time-ms' ) || timestamp_container.getAttribute( 'data-time' ) ) : '';
+
+
+            var image_overlay_container_style = image_overlay_container.style,
                 image_overlay_loading_style = image_overlay_loading.style,
                 image_overlay_header_style = image_overlay_header.style,
                 image_overlay_image_container_style = image_overlay_image_container.style,
@@ -2542,11 +2633,13 @@ function initialize( user_options ) {
             
             if ( is_night_mode() ) {
                 image_overlay_close_link.style.color = 'white';
+                image_overlay_header.style.color = 'white';
                 image_overlay_header.style.background = '#1b2836';
                 image_overlay_header.style.borderBottom = 'solid 1px #141D26';
             }
             else {
                 image_overlay_close_link.style.color = 'black';
+                image_overlay_header.style.color = 'black';
                 image_overlay_header.style.background = 'white';
                 image_overlay_header.style.borderBottom = 'solid 1px silver';
             }
@@ -3112,6 +3205,7 @@ function initialize( user_options ) {
             remove_old_button( old_button );
             
             var gallery = ( is_tweetdeck() && tweet_container.classList.contains( 'js-stream-item' ) ) ? null : search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
+            // TODO: React 版 Twitter は未対応
             
             if ( gallery ) {
                 old_button = gallery.querySelector( '.' + button_container_classname );
@@ -3121,9 +3215,20 @@ function initialize( user_options ) {
             
             
             function get_img_objects( container ) {
-                return to_array( container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ) ).filter( function ( img_object ) {
-                    return ( ! search_ancestor( img_object, [ 'js-quote-detail', 'quoted-tweet' ] ) ); // 引用ツイート中の画像は対象としない
-                } );
+                var img_objects = [];
+                
+                if ( is_react_twitter() ) {
+                    img_objects = to_array( container.querySelectorAll( 'a[href*="/photo/"]  div[aria-label] > img' ) ).filter( ( img_object ) => {
+                        return ( ! search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) ); // 引用ツイート中の画像は対象としない
+                    } );
+                }
+                else {
+                    img_objects = to_array( container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ) ).filter( ( img_object ) => {
+                        return ( ! search_ancestor( img_object, [ 'js-quote-detail', 'quoted-tweet' ] ) ); // 引用ツイート中の画像は対象としない
+                    } );
+                }
+                
+                return img_objects;
             } // end of get_img_objects()
             
             
@@ -3193,7 +3298,27 @@ function initialize( user_options ) {
                 img_urls = [],
                 all_img_urls = [];
             
-            action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
+            if ( is_react_twitter() ) {
+                if ( ! action_list ) {
+                    if ( is_tweet_detail_on_react_twitter( tweet ) ) {
+                        action_list = get_tweet_link_on_react_twitter( tweet );
+                        if ( action_list ) {
+                            action_list = action_list.parentNode;
+                        }
+                    }
+                    else {
+                        action_list = tweet_container.querySelector( '[role="group"]' );
+                        if ( action_list ) {
+                            if ( OPTIONS.DISPLAY_ORIGINAL_BUTTONS ) {
+                                action_list.style.maxWidth = 'initial';
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
+            }
             img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects;
             
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
@@ -3215,6 +3340,11 @@ function initialize( user_options ) {
             var button_container = button_container_template.cloneNode( true ),
                 button = button_container.querySelector( 'button' );
             
+            if ( is_react_twitter() ) {
+                button_container.style.cssFloat = 'right';
+                button.title = button_container.getAttribute( 'data-original-title' );
+            }
+            
             if ( ! OPTIONS.DISPLAY_ORIGINAL_BUTTONS ) {
                 button_container.style.display = 'none';
             }
@@ -3229,10 +3359,22 @@ function initialize( user_options ) {
                 button.removeAttribute( 'data-target-img-url' );
                 
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ^ event.altKey ) {
-                    var tweet_link = tweet.querySelector( 'a[rel="url"][href^="https://twitter.com/"],a[rel="url"][href^="/"]' ),
-                        tweet_url = tweet.getAttribute( 'data-permalink-path' ) || ( tweet_link && tweet_link.href ),
-                        tweet_text = tweet.querySelector( '.tweet-text,.js-tweet-text' ),
-                        title = ( tweet_text ) ? ( ( tweet_text.innerText !== undefined ) ? tweet_text.innerText : tweet_text.textContent ) : '';
+                    var tweet_link,
+                        tweet_url,
+                        tweet_text,
+                        title;
+                    
+                    if ( is_react_twitter() ) {
+                        tweet_link = get_tweet_link_on_react_twitter( tweet );
+                        tweet_url = tweet_link && tweet_link.href;
+                        tweet_text = tweet.querySelector( 'div[lang][dir="auto"] > span[dir="auto"]' );
+                    }
+                    else {
+                        tweet_link = tweet.querySelector( 'a[rel="url"][href^="https://twitter.com/"],a[rel="url"][href^="/"]' );
+                        tweet_url = tweet.getAttribute( 'data-permalink-path' ) || ( tweet_link && tweet_link.href );
+                        tweet_text = tweet.querySelector( '.tweet-text,.js-tweet-text' );
+                    }
+                    title = ( tweet_text ) ? ( ( tweet_text.innerText !== undefined ) ? tweet_text.innerText : tweet_text.textContent ) : '';
                     
                     if ( OPTIONS.DISPLAY_OVERLAY ) {
                         show_overlay( target_img_urls, tweet_url, title, focused_img_url, tweet, target_all_img_urls );
@@ -3399,20 +3541,44 @@ function initialize( user_options ) {
             return false;
         }
         
-        var tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) );
+        var tweet_list = [],
+            tweet,
+            ancestor;
         
-        if ( node.tagName == 'DIV' ) {
-            if ( has_some_classes( node, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] ) ) {
-                tweet_list.push( node );
-            }
-            else if ( ! has_some_classes( node, [ SCRIPT_NAME + 'Button' ] ) ) {
-                var ancestor = has_some_classes( node, [ 'js-media-preview-container' ] ) && search_ancestor( node, [ 'js-modal-panel' ] );
-                
-                if ( ancestor ) {
-                    var tweet = ancestor.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' );
+        if ( is_react_twitter() ) {
+            tweet_list = to_array( node.querySelectorAll( 'div[data-testid="tweet"], article[data-testid="tweetDetail"]' ) ).filter( tweet => search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) );
+            
+            if ( 0 <= [ 'DIV', 'ARTICLE' ].indexOf( node.tagName ) ) {
+                if ( 0 <= [ 'tweet', 'tweetDetail' ].indexOf( node.getAttribute( 'data-testid' ) ) ) {
+                    if ( search_ancestor_by_attribute( node, 'data-testid', 'primaryColumn' ) ) {
+                        tweet_list.push( node );
+                    }
+                }
+                else if ( ! has_some_classes( node, [ SCRIPT_NAME + 'Button' ] ) ) {
+                    tweet = search_ancestor_by_attribute( node, 'data-testid', [ 'tweet', 'tweetDetail' ] );
                     
-                    if ( tweet ) {
+                    if ( tweet && search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) ) {
                         tweet_list.push( tweet );
+                    }
+                }
+            }
+        }
+        else {
+            tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) );
+            
+            if ( node.tagName == 'DIV' ) {
+                if ( has_some_classes( node, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] ) ) {
+                    tweet_list.push( node );
+                }
+                else if ( ! has_some_classes( node, [ SCRIPT_NAME + 'Button' ] ) ) {
+                    ancestor = has_some_classes( node, [ 'js-media-preview-container' ] ) && search_ancestor( node, [ 'js-modal-panel' ] );
+                    
+                    if ( ancestor ) {
+                        tweet = ancestor.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' );
+                        
+                        if ( tweet ) {
+                            tweet_list.push( tweet );
+                        }
                     }
                 }
             }
@@ -3430,6 +3596,7 @@ function initialize( user_options ) {
     
     
     function check_help_dialog( node ) {
+        // TODO: React 版 Twitter は未対応
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
             return false;
         }
@@ -3472,11 +3639,23 @@ function initialize( user_options ) {
     } // end of check_help_dialog()
     
     
+    function update_display_mode() {
+        if ( is_night_mode() ) {
+            d.body.setAttribute( 'data-nightmode', 'true' );
+        }
+        else {
+            d.body.setAttribute( 'data-nightmode', 'false' );
+        }
+    } // end of update_display_mode()
+    
+    
     function start_mutation_observer() {
         new MutationObserver( function ( records ) {
             if ( ! is_valid_url() ) { // ※ History API によりページ遷移無しで移動する場合もあるので毎回チェック
                 return;
             }
+            
+            update_display_mode();
             
             records.forEach( function ( record ) {
                 var target = record.target;
@@ -3566,18 +3745,33 @@ function initialize( user_options ) {
             return ( ancestor ) ? ancestor.querySelector( '.' + SCRIPT_NAME + 'Button button' ) : null;
         } // end of get_button()
         
-        var gallery = d.querySelector( '.Gallery, .js-modal-panel' ),
-            target_tweet = ( gallery && w.getComputedStyle( gallery ).display != 'none' ) ? gallery.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) : null,
-            button = get_button( ( gallery && gallery.classList.contains( 'js-modal-panel' ) ) ? gallery : target_tweet );
+        var gallery,
+            target_tweet,
+            button;
         
-        if ( ( ! target_tweet ) || ( ! button ) ) {
-            target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet, .is-selected-tweet div.tweet, .is-selected-tweet div.js-tweet' );
-            button = get_button( target_tweet );
+        if ( is_react_twitter() ) {
+            var region = d.querySelector( 'main[role="main"] [data-testid="primaryColumn"] section[role="region"]' ) ;
+            
+            if ( region ) {
+                target_tweet = region.querySelector( '.rn-errtx7' ) || region.querySelector( 'article[role="article"] [data-testid="tweet"]' ) || region.querySelector( 'article[role="article"][data-testid="tweetDetail' );
+                button = get_button( target_tweet );
+            }
         }
-        if ( ( ! target_tweet ) || ( ! button ) ) {
-            target_tweet = d.querySelector( '.permalink-tweet' );
-            button = get_button( target_tweet );
+        else {
+            gallery = d.querySelector( '.Gallery, .js-modal-panel' );
+            target_tweet = ( gallery && w.getComputedStyle( gallery ).display != 'none' ) ? gallery.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) : null;
+            button = get_button( ( gallery && gallery.classList.contains( 'js-modal-panel' ) ) ? gallery : target_tweet );
+            
+            if ( ( ! target_tweet ) || ( ! button ) ) {
+                target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet, .is-selected-tweet div.tweet, .is-selected-tweet div.js-tweet' );
+                button = get_button( target_tweet );
+            }
+            if ( ( ! target_tweet ) || ( ! button ) ) {
+                target_tweet = d.querySelector( '.permalink-tweet' );
+                button = get_button( target_tweet );
+            }
         }
+        
         if ( ( ! target_tweet ) || ( ! button ) ) {
             return;
         }
@@ -3817,6 +4011,13 @@ function initialize( user_options ) {
         else {
             css_rule_lines.push( button_selector + '{font-size: 12px;}' );
             // TODO: [夜間モード対応] TweetDeck の場合 html.dark で判別がつく一方、Twitter の場合 CSS ファイルそのものを入れ替えている→ CSSルールでの切替困難
+            
+            if ( is_react_twitter() ) {
+                css_rule_lines.push( button_selector + '{background-image: linear-gradient(rgb(255, 255, 255), rgb(245, 248, 250)); background-color: rgb(245, 248, 250); color: rgb(102, 117, 127); cursor: pointer; display: inline-block; position: relative; border-width: 1px; border-style: solid; border-color: rgb(230, 236, 240); border-radius: 4px;}' );
+                css_rule_lines.push( button_selector + ':hover {color: rgb(20, 23, 26); background-color: rgb(230, 236, 240); background-image: linear-gradient(rgb(255, 255, 255), rgb(230, 236, 240)); text-decoration: none; border-color: rgb(230, 236, 240);}' );
+                css_rule_lines.push( 'body[data-nightmode="true"] ' + button_selector + '{background-color: #182430; background-image: none; border: 1px solid #38444d; border-radius: 4px; color: #8899a6; display: inline-block;}' );
+                css_rule_lines.push( 'body[data-nightmode="true"] ' + button_selector + ':hover {color: #fff; text-decoration: none; background-color: #10171e; background-image: none; border-color: #10171e;}' );
+            }
         }
         
         to_array( d.querySelectorAll( 'style.' + SCRIPT_NAME + '-css-rule' ) ).forEach( function ( old_style_css_rull ) {
@@ -3837,6 +4038,7 @@ function initialize( user_options ) {
         
         // 最初に表示されているすべてのツイートをチェック
         if ( is_valid_url() ) {
+            update_display_mode();
             check_tweets( d.body );
         }
         
