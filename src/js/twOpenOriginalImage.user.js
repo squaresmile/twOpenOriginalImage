@@ -143,9 +143,7 @@ var DEBUG = false,
     is_twitter = make_is_url_function( /^https?:\/\/(?:mobile\.)?twitter\.com\// ),
     is_tweetdeck = make_is_url_function( /^https?:\/\/tweetdeck\.twitter\.com\// ),
     is_media_url = make_is_url_function( /^https?:\/\/pbs\.twimg\.com\/media\// ),
-    is_react_twitter = function () {
-        return ( is_twitter() && ( !! d.querySelector( 'div#react-root' ) ) );
-    },
+    is_react_twitter = () => ( is_twitter() && ( !! d.querySelector( 'div#react-root' ) ) ),
     
     LANGUAGE = ( function () {
         var lang = 'en';
@@ -363,30 +361,32 @@ var is_bookmarklet = ( function () {
 
 
 function is_night_mode() {
-    // TweetDeck 用判定
-    var html_elem = d.querySelector( 'html' );
-    if ( html_elem.classList.contains( 'night_mode' ) || html_elem.classList.contains( 'dark' ) ) {
-        return true;
-    }
-    
-    // 新 Twitter 用判定
-    var header_elem = d.querySelector( 'header[role="banner"]' );
-    if ( header_elem ) {
-        if ( header_elem.querySelector( ':scope > .rn-14lw9ot' ) ) {
-            return false;
+    if ( is_react_twitter() ) {
+        // 新 Twitter 用判定
+        var header_elem = d.querySelector( 'header[role="banner"]' );
+        if ( header_elem ) {
+            if ( header_elem.querySelector( ':scope > .rn-14lw9ot' ) ) {
+                return false;
+            }
+            else if ( header_elem.querySelector( ':scope > .rn-bie543' ) ) {
+                return true;
+            }
         }
-        else if ( header_elem.querySelector( ':scope > .rn-bie543' ) ) {
+    }
+    else {
+        // TweetDeck 用判定
+        var html_elem = d.querySelector( 'html' );
+        if ( html_elem.classList.contains( 'night_mode' ) || html_elem.classList.contains( 'dark' ) ) {
             return true;
         }
+        
+        // 旧 Twitter 用判定
+        var nightmode_icon = d.querySelector( '#user-dropdown .js-nightmode-icon' );
+        if ( ! nightmode_icon ) {
+            return false;
+        }
+        return nightmode_icon.classList.contains( 'Icon--crescentFilled' );
     }
-    
-    // 旧 Twitter 用判定
-    var nightmode_icon = d.querySelector( '#user-dropdown .js-nightmode-icon' );
-    if ( ! nightmode_icon ) {
-        return false;
-    }
-    
-    return nightmode_icon.classList.contains( 'Icon--crescentFilled' );
 } // end of is_night_mode()
 
 
@@ -3204,8 +3204,15 @@ function initialize( user_options ) {
             
             remove_old_button( old_button );
             
-            var gallery = ( is_tweetdeck() && tweet_container.classList.contains( 'js-stream-item' ) ) ? null : search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
-            // TODO: React 版 Twitter は未対応
+            var gallery;
+            
+            if ( is_react_twitter() ) {
+                // TODO: React 版 Twitter の Gallery 表示には未対応
+                gallery = d.querySelector( '[aria-labelledby="modal-header"]' );
+            }
+            else {
+                gallery = ( is_tweetdeck() && tweet_container.classList.contains( 'js-stream-item' ) ) ? null : search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
+            }
             
             if ( gallery ) {
                 old_button = gallery.querySelector( '.' + button_container_classname );
@@ -3596,45 +3603,91 @@ function initialize( user_options ) {
     
     
     function check_help_dialog( node ) {
-        // TODO: React 版 Twitter は未対応
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
             return false;
         }
-        var help_dialog = ( ( node.getAttribute( 'id' ) == 'keyboard-shortcut-dialog' ) || ( node.classList.contains( 'keyboard-shortcut-list-modal' ) ) ) ? node : node.querySelector( 'keyboard-shortcut-dialog, keyboard-shortcut-list-modal' );
-        if ( ( ! help_dialog ) || ( help_dialog.querySelector( '.' + SCRIPT_NAME + '_key_help' ) ) ) {
-            return false;
-        }
         
-        if ( is_tweetdeck() ) {
-            var keyboard_shortcut_list = help_dialog.querySelector( 'dl.keyboard-shortcut-list' ),
-                dd = d.createElement( 'dd' ),
-                span = d.createElement( 'span' );
+        if ( is_react_twitter() ) {
+            if ( ! /^\/i\/keyboard_shortcuts/.test( new URL( location.href ).pathname ) ) {
+                return false;
+            }
             
-            span.className = 'text-like-keyboard-key';
-            span.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() ) );
-            dd.className = 'keyboard-shortcut-definition';
-            dd.appendChild( span );
-            dd.appendChild( d.createTextNode( ' ' + OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+            var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[data-testid="noRightControl"]' );
             
-            keyboard_shortcut_list.appendChild( dd );
+            if ( modal_header_h2_list.length < 1 ) {
+                return false;
+            }
+            
+            var shortcut_parent = modal_header_h2_list[ modal_header_h2_list.length - 1 ].parentNode.parentNode;
+            
+            if ( shortcut_parent.querySelector( '.' + SCRIPT_NAME + '_key_help' ) ) {
+                return false;
+            }
+            
+            var shorcut_list = shortcut_parent.querySelectorAll( ':scope > div' );
+            
+            if ( shorcut_list.length < 1 ) {
+                return false;
+            }
+            
+            var shortcut_container = shorcut_list[ shorcut_list.length - 1 ].cloneNode( true ),
+                shortcut_header = shortcut_container.firstChild,
+                shortcut_content_container = shortcut_container.lastChild,
+                shortcut_content = shortcut_content_container.firstChild;
+            
+            shortcut_container.classList.add( SCRIPT_NAME + '_key_help' );
+            
+            while ( 1 < shortcut_content_container.childNodes.length ) {
+                shortcut_content_container.removeChild( shortcut_content_container.lastChild );
+            }
+            
+            clear_node( shortcut_header );
+            clear_node( shortcut_content );
+            
+            shortcut_header.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+            shortcut_content.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() ) );
+            
+            shortcut_parent.appendChild( shortcut_container );
         }
         else {
-            var modal_table_tbody = help_dialog.querySelector( 'table.modal-table tbody' ),
-                tr_template = modal_table_tbody.querySelectorAll( 'tr' )[0],
-                tr = tr_template.cloneNode( true ),
-                shortcut_key = tr.querySelector( '.shortcut .sc-key' ),
-                shortcut_label = tr.querySelector( '.shortcut-label' );
+            var help_dialog = ( ( node.getAttribute( 'id' ) == 'keyboard-shortcut-dialog' ) || ( node.classList.contains( 'keyboard-shortcut-list-modal' ) ) ) ? node : node.querySelector( '.keyboard-shortcut-dialog, .keyboard-shortcut-list-modal' );
             
-            tr.classList.add( SCRIPT_NAME + '_key_help' );
+            if ( ( ! help_dialog ) || ( help_dialog.querySelector( '.' + SCRIPT_NAME + '_key_help' ) ) ) {
+                return false;
+            }
             
-            clear_node( shortcut_key );
-            clear_node( shortcut_label );
-            
-            shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
-            shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
-            
-            modal_table_tbody.appendChild( tr );
+            if ( is_tweetdeck() ) {
+                var keyboard_shortcut_list = help_dialog.querySelector( 'dl.keyboard-shortcut-list' ),
+                    dd = d.createElement( 'dd' ),
+                    span = d.createElement( 'span' );
+                
+                span.className = 'text-like-keyboard-key';
+                span.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() ) );
+                dd.className = 'keyboard-shortcut-definition';
+                dd.appendChild( span );
+                dd.appendChild( d.createTextNode( ' ' + OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+                
+                keyboard_shortcut_list.appendChild( dd );
+            }
+            else {
+                var modal_table_tbody = help_dialog.querySelector( 'table.modal-table tbody' ),
+                    tr_template = modal_table_tbody.querySelectorAll( 'tr' )[0],
+                    tr = tr_template.cloneNode( true ),
+                    shortcut_key = tr.querySelector( '.shortcut .sc-key' ),
+                    shortcut_label = tr.querySelector( '.shortcut-label' );
+                
+                tr.classList.add( SCRIPT_NAME + '_key_help' );
+                
+                clear_node( shortcut_key );
+                clear_node( shortcut_label );
+                
+                shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
+                shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+                
+                modal_table_tbody.appendChild( tr );
+            }
         }
+        
         return true;
     } // end of check_help_dialog()
     
@@ -3750,6 +3803,8 @@ function initialize( user_options ) {
             button;
         
         if ( is_react_twitter() ) {
+            // TODO: React 版 Twitter の Gallery 表示には未対応
+            gallery = d.querySelector( '[aria-labelledby="modal-header"]' );
             var region = d.querySelector( 'main[role="main"] [data-testid="primaryColumn"] section[role="region"]' ) ;
             
             if ( region ) {
