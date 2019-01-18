@@ -690,18 +690,34 @@ function get_img_kind( img_url ) {
 } // end of get_img_kind()
 
 
-function get_img_url( img_url, kind ) {
+function get_img_url( img_url, kind, old_format ) {
     img_url = normalize_img_url( img_url );
     
-    if ( ! kind ) {
-        kind = '';
+    if ( old_format ) {
+        if ( ! kind ) {
+            kind = '';
+        }
+        else {
+            if ( kind.search( ':' ) != 0 ) {
+                kind = ':' + kind;
+            }
+        }
+        img_url = img_url.replace( /:\w*$/, '' ) + kind;
     }
     else {
-        if ( kind.search( ':' ) != 0 ) {
-            kind = ':' + kind;
+        if ( ! kind ) {
+            kind = 'orig';
         }
+        kind = kind.replace( /:/g, '' );
+        
+        if ( ! /:\w*$/.test( img_url ) ) {
+            img_url += ':' + kind;
+        }
+        
+        img_url = img_url.replace( /\.([^.]+):\w*$/, '' ) + '?format=' + RegExp.$1 + '&name=' + kind;
     }
-    return img_url.replace( /:\w*$/, '' ) + kind;
+    
+    return img_url;
 } // end of get_img_url()
 
 
