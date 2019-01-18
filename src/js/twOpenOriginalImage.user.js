@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.33
+// @version         0.1.8.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -429,7 +429,13 @@ function search_ancestor_by_attribute( node, name, value, contains_self ) {
     }
     
     while ( node && ( node.nodeType == 1 ) ) {
-        if ( 0 <= value_list.indexOf( node.getAttribute( name ) ) ) {
+        if ( ( value === undefined ) || ( value === null ) ) {
+            if ( node.getAttribute( name ) !== null ) {
+                ancestor = node;
+                break;
+            }
+        }
+        else if ( 0 <= value_list.indexOf( node.getAttribute( name ) ) ) {
             ancestor = node;
             break;
         }
@@ -3067,6 +3073,8 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help );
                 
                 function change_background_color( background_color ) {
+                    image_overlay_container.style.background = ( background_color == 'black' ) ? 'rgba( 0, 0, 0, 0.8 )' : 'rgba( 255, 255, 255, 0.8 )';
+                    
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
                         img.style.background = background_color;
                     } );
@@ -3237,12 +3245,33 @@ function initialize( user_options ) {
             }
             
             
+            function get_img_number( img_object ) {
+                try {
+                    return parseInt( search_ancestor_by_attribute( img_object, 'href' ).href.replace( /^.*\/photo\//, '' ), 10 );
+                }
+                catch ( error ) {
+                    return 0;
+                }
+            } // end of get_img_number()
+            
+            
             function get_img_objects( container ) {
                 var img_objects = [];
                 
                 if ( is_react_twitter() ) {
-                    img_objects = to_array( container.querySelectorAll( 'a[href*="/photo/"]  div[aria-label] > img' ) ).filter( ( img_object ) => {
+                    img_objects = to_array( container.querySelectorAll( 'a[href*="/photo/"] div[aria-label] > img' ) ).filter( ( img_object ) => {
                         return ( ! search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) ); // 引用ツイート中の画像は対象としない
+                    } ).sort( ( img_object1, img_object2 ) => {
+                        var num1 = get_img_number( img_object1 ),
+                            num2 = get_img_number( img_object2 );
+                        
+                        if ( num1 < num2 ) {
+                            return -1;
+                        }
+                        else if ( num2 < num1 ) {
+                            return 1;
+                        }
+                        return 0;
                     } );
                 }
                 else {
