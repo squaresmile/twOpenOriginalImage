@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.1
+// @version         0.1.8.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -365,10 +365,10 @@ function is_night_mode() {
         // 新 Twitter 用判定
         var header_elem = d.querySelector( 'header[role="banner"]' );
         if ( header_elem ) {
-            if ( header_elem.querySelector( ':scope > .rn-14lw9ot' ) ) {
+            if ( header_elem.querySelector( ':scope > .r-14lw9ot, :scope > .rn-14lw9ot' ) ) {
                 return false;
             }
-            else if ( header_elem.querySelector( ':scope > .rn-bie543' ) ) {
+            else if ( header_elem.querySelector( ':scope > .r-bie543, :scope > .rn-bie543' ) ) {
                 return true;
             }
         }
@@ -385,7 +385,7 @@ function is_night_mode() {
         if ( ! nightmode_icon ) {
             return false;
         }
-        return nightmode_icon.classList.contains( 'Icon--crescentFilled' );
+        return ( nightmode_icon.classList.contains( 'Icon--lightBulbOff' ) || nightmode_icon.classList.contains( 'Icon--crescentFilled' ) );
     }
 } // end of is_night_mode()
 
@@ -802,7 +802,7 @@ function get_tweet_link_on_react_twitter( tweet ) {
     var tweet_link;
     
     if ( is_tweet_detail_on_react_twitter( tweet ) ) {
-        tweet_link = tweet.querySelector( '[dir="auto"] > a[role="link"][href^="/"][href*="/status/"]' );
+        tweet_link = tweet.querySelector( '[dir="auto"] > a[role="link"][href^="/"][href*="/status/"], [dir="auto"] > a[role="link"][href*="/help.twitter.com/"]' );
     }
     else {
         var timestamp_container = tweet.querySelector( 'a[role="link"][href^="/"][href*="/status/"] time' );
@@ -3279,7 +3279,6 @@ function initialize( user_options ) {
                         return ( ! search_ancestor( img_object, [ 'js-quote-detail', 'quoted-tweet' ] ) ); // 引用ツイート中の画像は対象としない
                     } );
                 }
-                
                 return img_objects;
             } // end of get_img_objects()
             
@@ -3372,7 +3371,6 @@ function initialize( user_options ) {
                 action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
             }
             img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects;
-            
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
                 return null;
             }
