@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.2
+// @version         0.1.8.3
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -143,7 +143,10 @@ var DEBUG = false,
     is_twitter = make_is_url_function( /^https?:\/\/(?:mobile\.)?twitter\.com\// ),
     is_tweetdeck = make_is_url_function( /^https?:\/\/tweetdeck\.twitter\.com\// ),
     is_media_url = make_is_url_function( /^https?:\/\/pbs\.twimg\.com\/media\// ),
-    is_react_twitter = () => ( is_twitter() && ( !! d.querySelector( 'div#react-root' ) ) ),
+    is_react_twitter = ( () => {
+        var is_react = is_twitter() && ( !! d.querySelector( 'div#react-root' ) );
+        return () => is_react;
+    } )(),
     
     LANGUAGE = ( function () {
         var lang = 'en';
@@ -363,15 +366,20 @@ var is_bookmarklet = ( function () {
 function is_night_mode() {
     if ( is_react_twitter() ) {
         // 新 Twitter 用判定
-        var header_elem = d.querySelector( 'header[role="banner"]' );
-        if ( header_elem ) {
-            if ( header_elem.querySelector( ':scope > .r-14lw9ot, :scope > .rn-14lw9ot' ) ) {
-                return false;
-            }
-            else if ( header_elem.querySelector( ':scope > .r-bie543, :scope > .rn-bie543' ) ) {
-                return true;
-            }
-        }
+        /*
+        //var header_elem = d.querySelector( 'header[role="banner"]' );
+        //if ( header_elem ) {
+        //    if ( header_elem.querySelector( ':scope > .r-14lw9ot, :scope > .rn-14lw9ot' ) ) {
+        //        return false;
+        //    }
+        //    else if ( header_elem.querySelector( ':scope > .r-bie543, :scope > .rn-bie543' ) ) {
+        //        return true;
+        //    }
+        //}
+        */
+        return ( getComputedStyle( d.body ).backgroundColor != 'rgb(255, 255, 255)' );
+        // [2019.08.07] メニューがサイドバーの「ダークモード」から、「もっと見る」＞「表示」＞「背景画像」に変更、種類も3種になった
+        // → document.body の background-color で判定（デフォルト: rgb(255, 255, 255)・ダークブルー: rgb(21, 32, 43)・ブラック: rgb(0, 0, 0)）
     }
     else {
         // TweetDeck 用判定
@@ -794,20 +802,44 @@ function adjust_date_for_zip( date ) {
 
 
 function is_tweet_detail_on_react_twitter( tweet ) {
-    return ( tweet.getAttribute( 'data-testid' ) == 'tweetDetail' );
+    //return ( tweet.getAttribute( 'data-testid' ) == 'tweetDetail' );
+    // ※ [2019.08.07] article[data-testid="tweetDetail"] は無くなり、article[role="article"] に置き換わっている
+    return ! tweet.querySelector( 'a[role="link"][href^="/"][href*="/status/"] time' );
+    // ※ TODO: 個別ツイートを判別方法要検討（暫定的に、個別ツイートへのリンク(タイムスタンプ)有無で判定）
 } // end of is_tweet_detail_on_react_twitter()
 
 
 function get_tweet_link_on_react_twitter( tweet ) {
-    var tweet_link;
+    var tweet_link,
+        timestamp_container = tweet.querySelector( 'a[role="link"][href^="/"][href*="/status/"] time' );
     
-    if ( is_tweet_detail_on_react_twitter( tweet ) ) {
-        tweet_link = tweet.querySelector( '[dir="auto"] > a[role="link"][href^="/"][href*="/status/"], [dir="auto"] > a[role="link"][href*="/help.twitter.com/"]' );
+    if ( timestamp_container ) {
+        tweet_link = search_ancestor_by_attribute( timestamp_container, 'role', 'link' );
     }
-    else {
-        var timestamp_container = tweet.querySelector( 'a[role="link"][href^="/"][href*="/status/"] time' );
+    
+    if ( ! tweet_link ) {
+        // ※個別ツイートを表示した場合、自身へのリンクが無い→ページのURLをhrefに持つリンクをダミーで作成し、ツイートソースラベルの前に挿入
+        var tweet_url = w.location.href.replace( /[?#].*/g, '' ),
+            tweet_source_label = tweet.querySelector( 'a[role="link"][href*="/help.twitter.com/"]' );
         
-        tweet_link = ( timestamp_container ) ? search_ancestor_by_attribute( timestamp_container, 'role', 'link' ) : null;
+        if ( tweet_source_label ) {
+            tweet_link = tweet_source_label.parentNode.querySelector( '.' + SCRIPT_NAME + '_tweetdetail_link' );
+        }
+        
+        if ( ! tweet_link ) {
+            tweet_link = d.createElement( 'a' );
+            tweet_link.className = SCRIPT_NAME + '_tweetdetail_link';
+            tweet_link.setAttribute( 'role', 'link' );
+            tweet_link.style.display = 'none';
+            
+            if ( tweet_url.match( /\/status(?:es)?\// ) ) {
+                tweet_link.setAttribute( 'href', tweet_url );
+            }
+            
+            if ( tweet_source_label ) {
+                tweet_source_label.parentNode.insertBefore( tweet_link, tweet_source_label );
+            }
+        }
     }
     
     return tweet_link;
@@ -3479,6 +3511,14 @@ function initialize( user_options ) {
                     }
                     else {
                         action_list.appendChild( button_container );
+                        
+                        if ( is_react_twitter() ) {
+                            var previous_element = button_container.previousSibling;
+                            
+                            if ( previous_element && ( previous_element.tagName == 'A' ) && ( previous_element.getAttribute( 'role' ) == 'link' ) ) {
+                                button.style.marginLeft = '8px';
+                            }
+                        }
                     }
                 }
             } // end of insert_button()
@@ -3517,15 +3557,16 @@ function initialize( user_options ) {
                                 lock_event = false;
                                 return;
                             }
-                            event.stopPropagation();
-                            event.preventDefault();
                             
-                            if ( event.altKey ) {
+                            if ( event.altKey || event.ctrlKey ) {
                                 // [Alt] / [option] キー押下時には、デフォルト動作を実施
                                 lock_event = true;
                                 img.click();
                                 return;
                             }
+                            
+                            event.stopPropagation();
+                            event.preventDefault();
                             
                             if ( img.src ) {
                                 button.setAttribute( 'data-target-img-url', get_img_url_orig( img.src ) );
@@ -3597,6 +3638,7 @@ function initialize( user_options ) {
         
         if ( is_react_twitter() ) {
             tweet_list = to_array( node.querySelectorAll( 'div[data-testid="tweet"], article[data-testid="tweetDetail"]' ) ).filter( tweet => search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) );
+            // ※ [2019.08.07] article[data-testid="tweetDetail"] は無くなり、article[role="article"] に置き換わっている
             
             if ( 0 <= [ 'DIV', 'ARTICLE' ].indexOf( node.tagName ) ) {
                 if ( 0 <= [ 'tweet', 'tweetDetail' ].indexOf( node.getAttribute( 'data-testid' ) ) ) {
@@ -3605,13 +3647,21 @@ function initialize( user_options ) {
                     }
                 }
                 else if ( ! has_some_classes( node, [ SCRIPT_NAME + 'Button' ] ) ) {
-                    tweet = search_ancestor_by_attribute( node, 'data-testid', [ 'tweet', 'tweetDetail' ] );
+                    tweet = search_ancestor_by_attribute( node, 'data-testid', [ 'tweet', 'tweetDetail' ] ) || search_ancestor_by_attribute( node, 'role', 'article' );
                     
                     if ( tweet && search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) ) {
                         tweet_list.push( tweet );
                     }
                 }
             }
+            tweet_list.forEach( function ( tweet ) {
+                var article = search_ancestor_by_attribute( tweet, 'role', 'article' );
+                
+                if ( article ) {
+                    tweet = article;
+                }
+                add_open_button( tweet );
+            } );
         }
         else {
             tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) );
@@ -3632,11 +3682,10 @@ function initialize( user_options ) {
                     }
                 }
             }
+            tweet_list.forEach( function ( tweet ) {
+                add_open_button( tweet );
+            } );
         }
-        
-        tweet_list.forEach( function ( tweet ) {
-            add_open_button( tweet );
-        } );
         
         if ( tweet_list.length <= 0 ) {
             return false;
@@ -3655,7 +3704,8 @@ function initialize( user_options ) {
                 return false;
             }
             
-            var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[data-testid="noRightControl"]' );
+            //var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[data-testid="noRightControl"]' );
+            var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[role="heading"][aria-level="2"]:not(#modal-header)' );
             
             if ( modal_header_h2_list.length < 1 ) {
                 return false;
@@ -3848,10 +3898,18 @@ function initialize( user_options ) {
         if ( is_react_twitter() ) {
             // TODO: React 版 Twitter の Gallery 表示には未対応
             gallery = d.querySelector( '[aria-labelledby="modal-header"]' );
-            var region = d.querySelector( 'main[role="main"] [data-testid="primaryColumn"] section[role="region"]' ) ;
+            var region = d.querySelector( 'main[role="main"] [data-testid="primaryColumn"] section[role="region"]' );
             
             if ( region ) {
-                target_tweet = region.querySelector( '.rn-errtx7' ) || region.querySelector( 'article[role="article"] [data-testid="tweet"]' ) || region.querySelector( 'article[role="article"][data-testid="tweetDetail' );
+                //target_tweet = region.querySelector( '.rn-errtx7' ) || region.querySelector( 'article[role="article"] [data-testid="tweet"]' ) || region.querySelector( 'article[role="article"][data-testid="tweetDetail]' );
+                target_tweet = region.querySelector( 'article[role="article"][data-focusvisible-polyfill="true"]' );
+                
+                if ( ! target_tweet ) {
+                    target_tweet = region.querySelector( 'article[role="article"] [data-testid="tweet"]' );
+                    if ( target_tweet ) {
+                        target_tweet = search_ancestor_by_attribute( target_tweet, 'role', 'article' );
+                    }
+                }
                 button = get_button( target_tweet );
             }
         }
