@@ -55,6 +55,9 @@ function log_error() {
 } // end of log_error()
 
 
+w.log_debug = log_debug;
+w.log_error = log_error;
+
 var is_firefox = ( function () {
     var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
     
@@ -221,6 +224,22 @@ function get_values( name_list, callback ) {
         } );
     } );
 } // end of get_values()
+
+
+function reload_tabs() {
+    chrome.tabs.query( {
+        url : '*://*.twitter.com/*'
+    }, function ( result ) {
+        result.forEach( function ( tab ) {
+            if ( ! tab.url.match( /^https?:\/\/(?:(?:tweetdeck|mobile)\.)?twitter\.com\// ) ) {
+                return;
+            }
+            chrome.tabs.reload( tab.id );
+        } );
+    });
+} // end of reload_tabs()
+
+w.reload_tabs = reload_tabs;
 
 
 function download_image( info, tab ) {
@@ -561,11 +580,17 @@ function on_message( message, sender, sendResponse ) {
             }
             break;
         
+        case 'RELOAD_TABS':
+            reload_tabs();
+            break;
+        
         default:
             break;
     }
     
     sendResponse( response );
+    
+    return true;
 }  // end of on_message()
 
 
@@ -599,6 +624,8 @@ function on_installed( details ) {
     log_debug( '*** on_installed():', details );
     
     initialize( 'onInstalled' );
+    
+    //reload_tabs();
 } // end of on_installed()
 
 

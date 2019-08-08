@@ -6,15 +6,45 @@ w.chrome = ( ( typeof browser != 'undefined' ) && browser.runtime ) ? browser : 
 
 
 var is_edge = ( function () {
-    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'edge' ) );
+        var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'edge' ) );
+        
+        return function () {
+            return flag;
+        };
+    } )(), // end of is_edge()
     
-    return function () {
-        return flag;
-    };
-} )(); // end of is_edge()
+    value_updated = false,
+    background_window = chrome.extension.getBackgroundPage();
 
 
-$().ready( function () {
+$( w ).on( 'unload', function ( event ) {
+    
+    background_window.log_debug( '< unloaded > value_updated:', value_updated );
+    
+    if ( ! value_updated ) {
+        return;
+    }
+    
+    value_updated = false;
+    
+    /*
+    //chrome.runtime.sendMessage( {
+    //    type : 'RELOAD_TABS'
+    //}, function ( response ) {
+    //    background_window.log_debug( response, '< RELOAD_TABS event done >' );
+    //} );
+    // ※ popup → background では sendMessage() がうまく動作しない
+    */
+    
+    background_window.reload_tabs();
+    // オプションを変更した場合にタブをリロード
+    // ※TODO: 一度でも変更すると、値が同じであってもリロードされる
+    
+    background_window.log_debug( '< reload_tabs() done >' );
+} );
+
+
+$( function () {
     var RADIO_KV_LIST = [
             { key : 'ENABLED_ON_TWEETDECK', val : true }
         ,   { key : 'DISPLAY_ALL_IN_ONE_PAGE', val : true }
@@ -120,6 +150,7 @@ $().ready( function () {
             var jq_input = $( this );
             
             localStorage[ key ] = check_svalue( kv, jq_input.val() );
+            value_updated = true;
             
             if ( key == 'DOWNLOAD_HELPER_SCRIPT_IS_VALID' ) {
                 reset_context_menu();
@@ -156,6 +187,8 @@ $().ready( function () {
             var svalue = check_svalue( kv, jq_input.val() );
             
             localStorage[ key ] = svalue;
+            value_updated = true;
+            
             jq_current.text( svalue );
             jq_input.val( svalue );
         } );
@@ -189,6 +222,8 @@ $().ready( function () {
             var svalue = check_svalue( kv, jq_input.val() );
             
             localStorage[ key ] = svalue;
+            value_updated = true;
+            
             jq_current.text( svalue );
             jq_input.val( svalue );
         } );
@@ -215,6 +250,8 @@ $().ready( function () {
         
         jq_operation.unbind( 'click' ).click( function( event ) {
             set_operation( ! operation );
+            value_updated = true;
+            
             reset_context_menu();
         } );
         
@@ -246,6 +283,8 @@ $().ready( function () {
     
     $( 'input[name="DEFAULT"]' ).click( function () {
         localStorage.clear();
+        value_updated = true;
+        
         set_all_evt();
         //location.reload();
     } );
