@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.3
+// @version         0.1.8.4
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -361,6 +361,15 @@ var is_bookmarklet = ( function () {
         return flag;
     };
 } )(); // end of is_bookmarklet()
+
+
+var is_extension = ( function () {
+    var flag = ( typeof w.twOpenOriginalImage_chrome_init == 'function' );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_extension()
 
 
 function is_night_mode() {
@@ -3162,8 +3171,9 @@ function initialize( user_options ) {
                     // TODO: Firefox(Greasemonkey) の場合には、これでも前面に出てこない場合有り(違うタブのタイムラインから、同一ツイートに対して操作した場合等)
                 }
             }
+            
             var child_window = w.open( 'about:blank', child_window_name ),
-                child_document = child_window.document;
+                child_document;
             
             opened_name_map[ child_window_name ] = child_window;
             
@@ -3172,7 +3182,14 @@ function initialize( user_options ) {
                     return;
                 }
                 
-                var child_document = child_window.document;
+                try {
+                    child_document = child_window.document;
+                }
+                catch ( error ) {
+                    log_error( 'cannot access document of child-window ', error );
+                    // TODO: Firefox 68.0.1 では 「DOMException: "Permission denied to access property "document" on cross-origin object"」となってアクセスできない
+                    return;
+                }
                 
                 try {
                     child_document.open();
@@ -3444,12 +3461,20 @@ function initialize( user_options ) {
                     var tweet_link,
                         tweet_url,
                         tweet_text,
-                        title;
+                        title,
+                        article;
                     
                     if ( is_react_twitter() ) {
                         tweet_link = get_tweet_link_on_react_twitter( tweet );
                         tweet_url = tweet_link && tweet_link.href;
-                        tweet_text = tweet.querySelector( 'div[lang][dir="auto"] > span[dir="auto"]' );
+                        tweet_text = tweet.querySelector( 'div[lang][dir="auto"] > span' );
+                        if ( ! tweet_text ) {
+                            article = search_ancestor_by_attribute( tweet, 'role', 'article' );
+                            
+                            if ( article ) {
+                                tweet_text = tweet.querySelector( 'div[lang][dir="auto"] > span' );
+                            }
+                        }
                     }
                     else {
                         tweet_link = tweet.querySelector( 'a[rel="url"][href^="https://twitter.com/"],a[rel="url"][href^="/"]' );
@@ -3458,7 +3483,8 @@ function initialize( user_options ) {
                     }
                     title = ( tweet_text ) ? ( ( tweet_text.innerText !== undefined ) ? tweet_text.innerText : tweet_text.textContent ) : '';
                     
-                    if ( OPTIONS.DISPLAY_OVERLAY ) {
+                    if ( OPTIONS.DISPLAY_OVERLAY || ( is_firefox() && is_extension() ) ) {
+                        // TODO: Firefox 68.0.1 では about:blank の document が「DOMException: "Permission denied to access property "document" on cross-origin object"」となってアクセス不可のため、常にオーバーレイ表示
                         show_overlay( target_img_urls, tweet_url, title, focused_img_url, tweet, target_all_img_urls );
                     }
                     else {
@@ -4211,7 +4237,7 @@ function initialize( user_options ) {
 } // end of initialize()
 
 
-if ( typeof w.twOpenOriginalImage_chrome_init == 'function' ) {
+if ( is_extension() ) {
     // Google Chorme 拡張機能から実行した場合、ユーザーオプションを読み込む
     w.twOpenOriginalImage_chrome_init( function ( user_options ) {
         initialize( user_options );

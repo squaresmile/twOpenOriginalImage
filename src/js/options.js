@@ -13,6 +13,14 @@ var is_edge = ( function () {
         };
     } )(), // end of is_edge()
     
+    is_firefox = ( function () {
+        var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
+        
+        return function () {
+            return flag;
+        };
+    } )(), // end of is_firefox()
+    
     value_updated = false,
     background_window = chrome.extension.getBackgroundPage();
 
@@ -260,9 +268,18 @@ $( function () {
     
     
     function set_all_evt() {
+        if ( is_firefox() ) {
+            // TODO: Firefox 68.0.1 では、別タブ(about:blank)のdocumentにアクセスできないため、オーバーレイは常に有効とする
+            localStorage[ 'DISPLAY_OVERLAY' ] = true;
+        }
         RADIO_KV_LIST.forEach( function( radio_kv ) {
             set_radio_evt( radio_kv );
         } );
+        if ( is_firefox() ) {
+            // TODO: Firefox 68.0.1 では、別タブ(about:blank)のdocumentにアクセスできないため、変更不可とする
+            $( '#DISPLAY_OVERLAY' ).css( { 'color' : 'gray' } );
+            $( 'input[name="DISPLAY_OVERLAY"]' ).prop("disabled", true);
+        }
         
         INT_KV_LIST.forEach( function( int_kv ) {
             set_int_evt( int_kv );
