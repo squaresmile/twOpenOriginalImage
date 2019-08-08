@@ -21,11 +21,21 @@ var is_edge = ( function () {
         };
     } )(), // end of is_firefox()
     
+    is_vivaldi = ( function () {
+        var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'vivaldi' ) );
+    
+        return function () {
+            return flag;
+        };
+    } )(), // end of is_vivaldi()
+    
     value_updated = false,
     background_window = chrome.extension.getBackgroundPage();
 
 
-$( w ).on( 'unload', function ( event ) {
+$( w ).on( ( is_vivaldi() ) ? 'blur' : 'unload', function ( event ) {
+    // ※ Vivaldi 2.5.1525.48 では、popup を閉じても unload イベントは発生せず、次に popup を開いたときに発生してしまう
+    //    → 暫定的に blur イベントで対処
     
     background_window.log_debug( '< unloaded > value_updated:', value_updated );
     

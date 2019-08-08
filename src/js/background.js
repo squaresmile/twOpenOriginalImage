@@ -5,7 +5,7 @@
 w.chrome = ( ( typeof browser != 'undefined' ) && browser.runtime ) ? browser : chrome;
 
 
-var DEBUG = false,
+var DEBUG = true,
     
     SCRIPT_NAME = 'twOpenOriginalImage',
     
