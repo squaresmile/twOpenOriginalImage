@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.4
+// @version         0.1.8.5
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -3097,7 +3097,12 @@ function initialize( user_options ) {
             
             
             var toggle_image_background_color = ( function () {
-                var image_background_color = OPTIONS.DEFAULT_IMAGE_BACKGROUND_COLOR,
+                var image_background_color_types = {
+                        'black' : 'white'
+                    ,   'white' : 'black'
+                    },
+                    saved_background_color = localStorage[ SCRIPT_NAME + '_saved_background_color' ],
+                    image_background_color = ( image_background_color_types[ saved_background_color ] ) ? saved_background_color : OPTIONS.DEFAULT_IMAGE_BACKGROUND_COLOR,
                     help = import_node( help_item_template );
                 
                 help.classList.add( 'help-toggle-bgcolor' );
@@ -3124,12 +3129,14 @@ function initialize( user_options ) {
                     help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR + OPTIONS[ ( background_color == 'black' ) ? 'HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK' : 'HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE' ] ) );
                     
                     image_background_color = background_color;
+                    
+                    localStorage[ SCRIPT_NAME + '_saved_background_color' ] = image_background_color;
                 } // end of change_help()
                 
                 change_background_color( image_background_color );
                 
                 function toggle_image_background_color( event ) {
-                    change_background_color( ( image_background_color == 'black' ) ? 'white' : 'black' );
+                    change_background_color( image_background_color_types[ image_background_color ] );
                 } // end of toggle_image_background_color()
                 
                 return toggle_image_background_color;
