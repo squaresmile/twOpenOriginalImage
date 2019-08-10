@@ -3670,19 +3670,20 @@ function initialize( user_options ) {
             ancestor;
         
         if ( is_react_twitter() ) {
-            tweet_list = to_array( node.querySelectorAll( 'div[data-testid="tweet"], article[data-testid="tweetDetail"]' ) ).filter( tweet => search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) );
+            if ( ! search_ancestor_by_attribute( node, 'data-testid', 'primaryColumn', true ) ) {
+                return false;
+            }
+            tweet_list = to_array( node.querySelectorAll( 'div[data-testid="tweet"], article[data-testid="tweetDetail"]' ) );
             // ※ [2019.08.07] article[data-testid="tweetDetail"] は無くなり、article[role="article"] に置き換わっている
             
             if ( 0 <= [ 'DIV', 'ARTICLE' ].indexOf( node.tagName ) ) {
                 if ( 0 <= [ 'tweet', 'tweetDetail' ].indexOf( node.getAttribute( 'data-testid' ) ) ) {
-                    if ( search_ancestor_by_attribute( node, 'data-testid', 'primaryColumn' ) ) {
-                        tweet_list.push( node );
-                    }
+                    tweet_list.push( node );
                 }
                 else if ( ! has_some_classes( node, [ SCRIPT_NAME + 'Button' ] ) ) {
                     tweet = search_ancestor_by_attribute( node, 'data-testid', [ 'tweet', 'tweetDetail' ] ) || search_ancestor_by_attribute( node, 'role', 'article' );
                     
-                    if ( tweet && search_ancestor_by_attribute( tweet, 'data-testid', 'primaryColumn' ) ) {
+                    if ( tweet ) {
                         tweet_list.push( tweet );
                     }
                 }
