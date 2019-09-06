@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.6
+// @version         0.1.8.7
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -3306,7 +3306,7 @@ function initialize( user_options ) {
                 var img_objects = [];
                 
                 if ( is_react_twitter() ) {
-                    img_objects = to_array( container.querySelectorAll( 'a[href*="/photo/"] div[aria-label] > img' ) ).filter( ( img_object ) => {
+                    img_objects = to_array( container.querySelectorAll( 'div[aria-label] > img[src*="//pbs.twimg.com/media/"]' ) ).filter( ( img_object ) => {
                         if ( OPTIONS.SHOW_IMAGES_OF_QUOTE_TWEET ) {
                             return true;
                         }
@@ -3669,7 +3669,7 @@ function initialize( user_options ) {
                         add_event( img, 'remove-image-events', remove_image_events );
                     }
                     
-                    if ( img.classList.contains( 'media-image' ) ) {
+                    if ( img.classList.contains( 'media-image' ) || is_react_twitter() ) {
                         img.style.pointerEvents = 'auto';
                     }
                     
