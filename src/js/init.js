@@ -102,8 +102,6 @@ var twOpenOriginalImage_chrome_init = ( function() {
     return get_init_function( 'GET_OPTIONS', option_name_to_function_map );
 } )(); // end of twOpenOriginalImage_chrome_init()
 
-w.twOpenOriginalImage_chrome_init = twOpenOriginalImage_chrome_init;
-
 
 chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse ) {
     switch ( message.type )  {
@@ -137,6 +135,16 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
             } ) ;
             break;
         
+        case 'RELOAD_REQUEST' :
+            sendResponse( {
+                result : 'OK'
+            } );
+            
+            setTimeout( () => {
+                location.reload();
+            }, 100 );
+            break;
+        
         default :
             sendResponse( {
                 result : 'NG',
@@ -146,6 +154,31 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
     }
     return true;
 } );
+
+// content_scripts の情報を渡す
+chrome.runtime.sendMessage( {
+    type : 'NOTIFICATION_ONLOAD',
+    info : {
+        url : location.href,
+    }
+}, function ( response ) {
+    /*
+    //window.addEventListener( 'beforeunload', function ( event ) {
+    //    // TODO: メッセージが送信できないケース有り ("Uncaught TypeError: Cannot read property 'sendMessage' of undefined")
+    //    chrome.runtime.sendMessage( {
+    //        type : 'NOTIFICATION_ONUNLOAD',
+    //        info : {
+    //            url : location.href,
+    //            event : 'onbeforeunload',
+    //        }
+    //    }, function ( response ) {
+    //    } );
+    //} );
+    */
+} );
+
+
+w.twOpenOriginalImage_chrome_init = twOpenOriginalImage_chrome_init;
 
 } )( window, document );
 
