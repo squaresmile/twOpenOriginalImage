@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.7
+// @version         0.1.8.8
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -1762,6 +1762,7 @@ function initialize( user_options ) {
                 
                 download_link_container_template.className = 'download-link-container';
                 download_link_container_style.margin = '0 0 1px 0';
+                download_link_container_style.padding = '0 0 0 8px';
                 
                 if ( OPTIONS.HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY ) {
                     download_link_container_style.opacity = '1.0';
@@ -2356,12 +2357,24 @@ function initialize( user_options ) {
                         
                         image_overlay_status_container.className = SCRIPT_NAME + '_status_overlay';
                         image_overlay_status_container_style.position = 'absolute';
+                        image_overlay_status_container_style.display = 'block';
+                        image_overlay_status_container_style.width = '100%';
                         image_overlay_status_container_style.top = 0;
                         //image_overlay_status_container_style.right = 0;
                         //image_overlay_status_container_style.bottom = 0;
-                        image_overlay_status_container_style.left = '16px';
-                        image_overlay_status_container_style.padding = '6px 0';
-                        image_overlay_status_container_style.textAlign = 'center';
+                        //image_overlay_status_container_style.left = '16px';
+                        image_overlay_status_container_style.left = '0';
+                        //image_overlay_status_container_style.padding = '6px 0';
+                        image_overlay_status_container_style.padding = '0';
+                        image_overlay_status_container_style.paddingTop = '8px';
+                        if ( 1024 < window.innerWidth ) {
+                            image_overlay_status_container_style.textAlign = 'center';
+                            image_overlay_status_container_style.paddingLeft = '0';
+                        }
+                        else {
+                            image_overlay_status_container_style.textAlign = 'left';
+                            image_overlay_status_container_style.paddingLeft = '16px';
+                        }
                         image_overlay_status_container_style.pointerEvents = 'none';
                         //image_overlay_status_container_style.color = 'black';
                         
@@ -2374,7 +2387,13 @@ function initialize( user_options ) {
                         
                         image_overlay_shortcut_help.className = SCRIPT_NAME + '_shortcut_help_overlay';
                         image_overlay_shortcut_help_style.cssFloat = 'left';
-                        image_overlay_shortcut_help_style.margin = '2px 8px 2px 64px';
+                        image_overlay_shortcut_help_style.margin = '2px 8px 2px';
+                        if ( 1024 < window.innerWidth ) {
+                            image_overlay_shortcut_help_style.marginLeft = '8px';
+                        }
+                        else {
+                            image_overlay_shortcut_help_style.marginLeft = '64px';
+                        }
                         
                         return image_overlay_shortcut_help;
                     } )(),
@@ -2943,6 +2962,16 @@ function initialize( user_options ) {
                     }
                     adjust_last_image_link_container();
                     
+                    if ( 1024 < window.innerWidth ) {
+                        image_overlay_status_container.style.textAlign = 'center';
+                        image_overlay_status_container.style.paddingLeft = '0';
+                        image_overlay_shortcut_help.style.marginLeft = '8px';
+                    }
+                    else {
+                        image_overlay_status_container.style.textAlign = 'left';
+                        image_overlay_status_container.style.paddingLeft = '16px';
+                        image_overlay_shortcut_help.style.marginLeft = '64px';
+                    }
                     return false;
                 }, true );
                 
