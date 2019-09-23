@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.8
+// @version         0.1.8.9
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -1026,6 +1026,10 @@ function save_blob( filename, blob ) {
         download_button.href = blob_url;
         download_button.download = filename;
         
+        download_button.addEventListener( 'click', ( event ) => {
+            event.stopPropagation(); // イベントハンドラ無効化
+        } );
+        
         d.documentElement.appendChild( download_button );
         
         download_button.click();
@@ -1039,7 +1043,7 @@ function save_blob( filename, blob ) {
         download_button.parentNode.removeChild( download_button );
     } // end of _save()
     
-    if ( typeof saveAs == 'function' ) {
+    if ( ( typeof saveAs == 'function' ) && ( ! is_tweetdeck() ) ) {
         try {
             saveAs( blob, filename );
         }
@@ -1062,6 +1066,10 @@ function save_base64( filename, base64, mimetype ) {
     
     download_button.href = data_url;
     download_button.download = filename;
+    
+    download_button.addEventListener( 'click', ( event ) => {
+        event.stopPropagation(); // イベントハンドラ無効化
+    } );
     
     d.documentElement.appendChild( download_button );
     
@@ -1179,6 +1187,8 @@ function download_zip( tweet_info_json ) {
                     w.close();
                 }, 1000 );
             }
+        } ).catch( ( error ) => {
+            log_error( 'add_img_info() zip.generateAsync()', error );
         } );
     } // end of add_img_info()
     
