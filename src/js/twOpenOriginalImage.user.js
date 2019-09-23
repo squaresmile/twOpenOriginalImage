@@ -3567,10 +3567,21 @@ function initialize( user_options ) {
                     if ( focused_img_url ) {
                         target_img_urls = [ focused_img_url ];
                     }
-                    target_img_urls.reverse();
-                    target_img_urls.forEach( function ( img_url ) {
-                        w.open( img_url, '_blank' );
-                    } );
+                    
+                    var window_name = '_blank';
+                    
+                    // TODO: 順に開くと最後の画像タブがアクティブになってしまう
+                    if ( typeof extension_functions != 'undefined' ) {
+                        // 拡張機能の場合には chrome.tabs により制御
+                        extension_functions.open_multi_tabs( target_img_urls );
+                    }
+                    else {
+                        // 逆順にして、最初の画像がアクティブになるようにする
+                        target_img_urls.reverse();
+                        target_img_urls.forEach( function ( img_url, index ) {
+                            w.open( img_url, '_blank' );
+                        } );
+                    }
                 }
                 return false;
             } );
@@ -3862,7 +3873,8 @@ function initialize( user_options ) {
             if ( is_tweetdeck() ) {
                 var keyboard_shortcut_list = help_dialog.querySelector( 'dl.keyboard-shortcut-list' ),
                     dd = d.createElement( 'dd' ),
-                    span = d.createElement( 'span' );
+                    //span = d.createElement( 'span' );
+                    span = d.createElement( 'kbd' );
                 
                 span.className = 'text-like-keyboard-key';
                 span.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() ) );
