@@ -80,4 +80,10 @@
 ,   "SUPPRESS_FILENAME_SUFFIX" : {
         "message" : "파일 이름의 접미사 (예 : -orig)를 표시하지 않습니다"
     }
+,   "TAB_SORTING" : {
+        "message" : "탭 정렬"
+    }
+,   "TAB_SORTING_ENABLED" : {
+        "message" : "[1][2][3][4]"
+    }
 }

@@ -80,4 +80,10 @@
 ,   "SUPPRESS_FILENAME_SUFFIX" : {
         "message" : "Suppress suffix (e.g. -orig) of filename"
     }
+,   "TAB_SORTING" : {
+        "message" : "Tab sorting"
+    }
+,   "TAB_SORTING_ENABLED" : {
+        "message" : "[1][2][3][4]"
+    }
 }

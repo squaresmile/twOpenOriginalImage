@@ -74,6 +74,7 @@ $( function () {
         ,   { key : 'SWAP_IMAGE_URL', val : false }
         ,   { key : 'HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY', val : true }
         ,   { key : 'SUPPRESS_FILENAME_SUFFIX', val : false }
+        ,   { key : 'TAB_SORTING', val : true }
         ],
         INT_KV_LIST = [
             //{ key : 'WAIT_AFTER_OPENPAGE', val : 500, min : 0, max : null }
@@ -148,7 +149,7 @@ $( function () {
         var key = kv.key,
             svalue = check_svalue( kv, localStorage[ key ] ),
             jq_target = $( '#' + key ),
-            jq_inputs = jq_target.find( 'input:radio' );
+            jq_inputs = jq_target.find( 'input:radio[name="' + key + '"]' );
         
         jq_inputs.unbind( 'change' ).each( function () {
             var jq_input = $( this ),

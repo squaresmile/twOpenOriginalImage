@@ -80,4 +80,10 @@
 ,   "SUPPRESS_FILENAME_SUFFIX" : {
         "message" : "ファイル名の接尾辞(-orig等)抑制"
     }
+,   "TAB_SORTING" : {
+        "message" : "タブ並び替え"
+    }
+,   "TAB_SORTING_ENABLED" : {
+        "message" : "[1][2][3][4]"
+    }
 }
