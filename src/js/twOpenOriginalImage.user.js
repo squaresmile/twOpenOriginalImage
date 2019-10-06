@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.9
+// @version         0.1.8.10
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -976,7 +976,7 @@ var create_download_link = ( function () {
     link_style.color = 'gray';
     link_style.background = 'white';
     link_style.textDecoration = 'none';
-    link_style.margin = '0';
+    link_style.margin = '0 0 0 8px';
     link_style.padding = '4px 8px';
     link_style.border = 'solid 2px';
     link_style.borderRadius = '3px';
@@ -1772,7 +1772,7 @@ function initialize( user_options ) {
                 
                 download_link_container_template.className = 'download-link-container';
                 download_link_container_style.margin = '0 0 1px 0';
-                download_link_container_style.padding = '0 0 0 8px';
+                download_link_container_style.padding = '0 0 0 0';
                 
                 if ( OPTIONS.HIDE_DOWNLOAD_BUTTON_AUTOMATICALLY ) {
                     download_link_container_style.opacity = '1.0';
