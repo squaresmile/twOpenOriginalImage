@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.10
+// @version         0.1.8.11
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -3634,8 +3634,13 @@ function initialize( user_options ) {
                         if ( is_react_twitter() ) {
                             var previous_element = button_container.previousSibling;
                             
-                            if ( previous_element && ( previous_element.tagName == 'A' ) && ( previous_element.getAttribute( 'role' ) == 'link' ) ) {
-                                button.style.marginLeft = '8px';
+                            if ( previous_element ) {
+                                if ( ( previous_element.tagName == 'A' ) && ( previous_element.getAttribute( 'role' ) == 'link' ) ) {
+                                    button.style.marginLeft = '8px';
+                                }
+                                else if ( previous_element.querySelector( 'svg' ) ) {
+                                    button.style.marginLeft = '16px';
+                                }
                             }
                         }
                     }
