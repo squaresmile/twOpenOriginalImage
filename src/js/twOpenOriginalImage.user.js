@@ -754,6 +754,11 @@ function get_img_url_orig( img_url ) {
 } // end of get_img_url_orig()
 
 
+function get_filename_prefix( tweet_url ) {
+    return tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
+} // end of get_filename_prefix()
+
+
 function get_img_filename( img_url ) {
     img_url = normalize_img_url( img_url );
     
@@ -1108,7 +1113,7 @@ function download_zip( tweet_info_json ) {
     }
     
     var zip = new JSZip(),
-        filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
+        filename_prefix = get_filename_prefix(tweet_url);
     
     timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url );
     
@@ -2474,7 +2479,7 @@ function initialize( user_options ) {
             if ( ! options ) {
                 options = {};
             }
-            let filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
+            let filename_prefix = get_filename_prefix(tweet_url);
             var target_document = options.document,
                 callback = options.callback,
                 start_img_url = options.start_img_url;
