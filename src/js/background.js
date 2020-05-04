@@ -309,7 +309,7 @@ function download_image( info, tab ) {
     var img_url_orig = img_url.replace( /:\w*$/, '' ) + ':orig',
         // filename = get_filename_from_image_url( img_url_orig );
         extension = get_extension_from_image_url( img_url_orig ),
-        filename = tab.url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' ),
+        filename = info.linkUrl.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+)\/photo\/(\d+).*$/, '$1-$2-img$3' ),
         filename = filename + '.' + extension;
     
     img_url_orig = get_formatted_img_url( img_url_orig );
