@@ -1108,7 +1108,7 @@ function download_zip( tweet_info_json ) {
     }
     
     var zip = new JSZip(),
-        filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
+        filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
     
     timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url );
     
@@ -1154,7 +1154,7 @@ function download_zip( tweet_info_json ) {
             var img_info = img_info_dict[ img_url ],
                 img_extension = get_img_extension( img_info.filename ),
                 //img_filename = img_info.filename;
-                img_filename = filename_prefix + '-img' + ( index + 1 ) + '.' + img_extension;
+                img_filename = filename_prefix + ((img_urls.length > 1) ? '_' + (index + 1) : '') + '.' + img_extension;
             
             if ( ! img_extension ) {
                 return;
@@ -2470,10 +2470,11 @@ function initialize( user_options ) {
         } // end of mouse_is_on_scrollbar()
         
         
-        function add_images_to_page( img_urls, parent, options ) {
+        function add_images_to_page( img_urls, tweet_url, parent, options ) {
             if ( ! options ) {
                 options = {};
             }
+            let filename_prefix = tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
             var target_document = options.document,
                 callback = options.callback,
                 start_img_url = options.start_img_url;
@@ -2495,6 +2496,8 @@ function initialize( user_options ) {
                         mouse_click = object_extender( MouseClick ).init( download_link );
                     
                     download_link.href = img_url;
+                    let img_extension = get_img_extension( img_url );
+                    let img_filename = filename_prefix + ((img_urls.length > 1) ? '_' + (index + 1) : '') + '.' + img_extension;
                     
                     if ( is_bookmarklet() ) {
                         mouse_click.start( function ( event ) {
@@ -2520,7 +2523,7 @@ function initialize( user_options ) {
                             
                             fetch( download_link.href )
                             .then( response => response.blob() )
-                            .then( blob => save_blob( download_link.download, blob ) );
+                            .then( blob => save_blob( img_filename, blob ) );
                             
                             return false;
                         } );
@@ -2737,7 +2740,7 @@ function initialize( user_options ) {
                 image_overlay_header.style.borderBottom = 'solid 1px silver';
             }
             
-            add_images_to_page( img_urls, image_overlay_image_container, {
+            add_images_to_page( img_urls, tweet_url, image_overlay_image_container, {
                 start_img_url : start_img_url
             ,   callback : function () {
                     if ( image_overlay_container.style.display == 'none' ) {
@@ -3271,7 +3274,7 @@ function initialize( user_options ) {
                     body.appendChild( header );
                 }
                 
-                add_images_to_page( img_urls, body, { document : child_document } );
+                add_images_to_page( img_urls, tweet_url, body, { document : child_document } );
                 
                 child_window.focus();
                 
