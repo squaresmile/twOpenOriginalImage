@@ -2487,9 +2487,8 @@ function initialize( user_options ) {
                 target_document = d;
             }
             
-            var remaining_images_counter = 0;
-            
-            let filename_prefix = get_filename_prefix(tweet_url);
+            var remaining_images_counter = 0,
+                filename_prefix = get_filename_prefix(tweet_url);
             
             img_urls.forEach( function ( img_url, index ) {
                 var img = import_node( img_template, target_document ),
@@ -2499,11 +2498,11 @@ function initialize( user_options ) {
                 if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
                     var download_link = create_download_link( img_url, target_document ),
                         download_link_container = import_node( download_link_container_template, target_document ),
-                        mouse_click = object_extender( MouseClick ).init( download_link );
+                        mouse_click = object_extender( MouseClick ).init( download_link ),
+                        img_extension = get_img_extension( img_url ),
+                        img_filename = filename_prefix + '-img' + ( index + 1 ) + '.' + img_extension;
                     
                     download_link.href = img_url;
-                    let img_extension = get_img_extension( img_url );
-                    let img_filename = filename_prefix + '-img' + ( index + 1 ) + '.' + img_extension;
                     
                     if ( is_bookmarklet() ) {
                         mouse_click.start( function ( event ) {
