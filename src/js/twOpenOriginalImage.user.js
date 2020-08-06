@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.11
+// @version         0.1.8.12
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -3840,20 +3840,32 @@ function initialize( user_options ) {
                 return false;
             }
             
-            //var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[data-testid="noRightControl"]' );
-            var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[role="heading"][aria-level="2"]:not(#modal-header)' );
+            /*
+            ////var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[data-testid="noRightControl"]' );
+            //var modal_header_h2_list = d.querySelectorAll( '[aria-labelledby="modal-header"] h2[role="heading"][aria-level="2"]:not(#modal-header)' );
+            //
+            //if ( modal_header_h2_list.length < 1 ) {
+            //    return false;
+            //}
+            //
+            //var shortcut_parent = modal_header_h2_list[ modal_header_h2_list.length - 1 ].parentNode.parentNode;
+            //
+            */
             
-            if ( modal_header_h2_list.length < 1 ) {
+            var shortcut_parents = d.querySelectorAll( '[aria-labelledby="modal-header"] ul[role="list"]' );
+            
+            if ( shortcut_parents.length <= 0 ) {
                 return false;
             }
             
-            var shortcut_parent = modal_header_h2_list[ modal_header_h2_list.length - 1 ].parentNode.parentNode;
+            var shortcut_parent = shortcut_parents[ shortcut_parents.length - 1 ];
             
             if ( shortcut_parent.querySelector( '.' + SCRIPT_NAME + '_key_help' ) ) {
                 return false;
             }
             
-            var shorcut_list = shortcut_parent.querySelectorAll( ':scope > div' );
+            //var shorcut_list = shortcut_parent.querySelectorAll( ':scope > div' );
+            var shorcut_list = shortcut_parent.querySelectorAll( ':scope > li[role="listitem"]' );
             
             if ( shorcut_list.length < 1 ) {
                 return false;
@@ -3865,6 +3877,7 @@ function initialize( user_options ) {
                 shortcut_content = shortcut_content_container.firstChild;
             
             shortcut_container.classList.add( SCRIPT_NAME + '_key_help' );
+            shortcut_container.setAttribute( 'aria-label', OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES + ': ' + OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() );
             
             while ( 1 < shortcut_content_container.childNodes.length ) {
                 shortcut_content_container.removeChild( shortcut_content_container.lastChild );
