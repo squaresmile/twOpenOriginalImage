@@ -755,7 +755,7 @@ function get_img_url_orig( img_url ) {
 
 
 function get_filename_prefix( tweet_url ) {
-    return tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' );
+    return tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
 } // end of get_filename_prefix()
 
 
