@@ -56,7 +56,7 @@ function get_init_function( message_type, option_name_to_function_map, namespace
         }
         
         Object.keys( option_name_to_function_map ).forEach( function ( option_name ) {
-            if ( ! ( response.hasOwnProperty( option_name ) ) ) {
+            if ( ! ( option_name in response ) ) {
                 options[ option_name ] = null;
                 return;
             }
@@ -192,7 +192,7 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
             .then( ( response ) => response.blob() )
             .then( ( blob ) => {
                 if ( typeof saveAs == 'function' ) {
-                    saveAs( blob, message.filename );
+                    window.saveAs( blob, message.filename );
                 }
                 else {
                     var link = d.createElement('a');
