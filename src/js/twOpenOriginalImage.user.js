@@ -3328,7 +3328,8 @@ function initialize( user_options ) {
                 try {
                     number = parseInt( search_ancestor_by_attribute( img_object, 'href' ).href.replace( /^.*\/photo\//, '' ), 10 );
                     if ( is_react_twitter() ) {
-                        offset = ( search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) ) ? 10 : 0;
+                        //offset = ( search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) ) ? 10 : 0;
+                        offset = img_object.closest( 'div[role="link"], [role="blockquote"]' ) ? 10 : 0;
                     }
                     else {
                         offset = ( search_ancestor( img_object, [ 'js-quote-detail', 'quoted-tweet' ] ) ) ? 10 : 0;
@@ -3350,7 +3351,9 @@ function initialize( user_options ) {
                             return true;
                         }
                         else {
-                            return ( ! search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) ); // 引用ツイート中の画像は対象としない
+                            // 引用ツイート中の画像は対象としない
+                            //return ( ! search_ancestor_by_attribute( img_object, 'role', 'blockquote' ) );
+                            return ( ! img_object.closest( 'div[role="link"], [role="blockquote"]' ) );
                         }
                     } ).sort( ( img_object1, img_object2 ) => {
                         var num1 = get_img_number( img_object1 ),
