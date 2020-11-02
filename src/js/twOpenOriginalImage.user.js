@@ -3949,64 +3949,77 @@ function initialize( user_options ) {
     
     
     function start_mutation_observer() {
-        new MutationObserver( function ( records ) {
-            if ( ! is_valid_url() ) { // ※ History API によりページ遷移無しで移動する場合もあるので毎回チェック
-                return;
-            }
-            
-            update_display_mode();
-            
-            if ( is_react_twitter() ) {
-                check_tweets( d.body );
-                check_help_dialog( d.body );
-                return;
-            }
-            
-            records.forEach( function ( record ) {
-                var target = record.target;
-                                
-                if ( is_tweetdeck() ) {
-                    to_array( record.removedNodes ).forEach( function ( removedNode ) {
-                        if ( removedNode.nodeType != 1 ) {
-                            return;
-                        }
-                        if ( ! removedNode.classList.contains( 'removed' ) ) {
-                            // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
-                            fire_event( removedNode, 'reinsert' );
-                        }
-                        
-                        if ( removedNode.classList.contains( 'js-media' ) ) {
-                            // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
-                        }
-                    } );
+        var observer = new MutationObserver( function ( records ) {
+                if ( ! is_valid_url() ) { // ※ History API によりページ遷移無しで移動する場合もあるので毎回チェック
+                    return;
                 }
-                // ※ addedNodes よりも removedNodes を先に処理しないと、ボタンの存在チェック等で誤動作することがある
                 
-                to_array( record.addedNodes ).forEach( function ( addedNode ) {
-                    if ( addedNode.nodeType != 1 ) {
-                        return;
+                update_display_mode();
+                
+                stop_observe();
+                
+                try {
+                    if ( is_react_twitter() ) {
+                        check_tweets( d.body );
+                        check_help_dialog( d.body );
                     }
-                    if ( check_tweets( addedNode ) ) {
-                        return;
-                    }
-                    if ( check_help_dialog( addedNode ) ) {
-                        return;
-                    }
-                    
-                    if ( is_tweetdeck() ) {
-                        if ( addedNode.classList.contains( 'js-media' ) ) {
-                            // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
-                            var ancestor = search_ancestor( addedNode, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] );
-                            
-                            if ( ancestor ) {
-                                check_tweets( ancestor );
+                    else {
+                        records.forEach( function ( record ) {
+                            var target = record.target;
+                                            
+                            if ( is_tweetdeck() ) {
+                                to_array( record.removedNodes ).forEach( function ( removedNode ) {
+                                    if ( removedNode.nodeType != 1 ) {
+                                        return;
+                                    }
+                                    if ( ! removedNode.classList.contains( 'removed' ) ) {
+                                        // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
+                                        fire_event( removedNode, 'reinsert' );
+                                    }
+                                    
+                                    if ( removedNode.classList.contains( 'js-media' ) ) {
+                                        // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
+                                    }
+                                } );
                             }
-                            return;
-                        }
+                            // ※ addedNodes よりも removedNodes を先に処理しないと、ボタンの存在チェック等で誤動作することがある
+                            
+                            to_array( record.addedNodes ).forEach( function ( addedNode ) {
+                                if ( addedNode.nodeType != 1 ) {
+                                    return;
+                                }
+                                if ( check_tweets( addedNode ) ) {
+                                    return;
+                                }
+                                if ( check_help_dialog( addedNode ) ) {
+                                    return;
+                                }
+                                
+                                if ( is_tweetdeck() ) {
+                                    if ( addedNode.classList.contains( 'js-media' ) ) {
+                                        // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
+                                        var ancestor = search_ancestor( addedNode, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] );
+                                        
+                                        if ( ancestor ) {
+                                            check_tweets( ancestor );
+                                        }
+                                        return;
+                                    }
+                                }
+                            } );
+                        } );
                     }
-                } );
-            } );
-        } ).observe( d.body, { childList : true, subtree : true } );
+                }
+                finally {
+                    start_observe();
+                }
+            } ),
+            
+            start_observe = () => observer.observe( d.body, { childList : true, subtree : true } ),
+            
+            stop_observe = () => observer.disconnect();
+        
+        start_observe();
         
     } // end of start_mutation_observer()
     
