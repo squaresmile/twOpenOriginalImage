@@ -507,7 +507,7 @@ var escape_html = ( function () {
         re_escape = /[&"'<>]/g;
     
     function escape_char( char ) {
-        if ( ! ( escape_map.hasOwnProperty( char ) ) ) {
+        if ( ! ( char in escape_map ) ) {
             return char;
         }
         return escape_map[ char ];
@@ -1045,7 +1045,7 @@ function save_blob( filename, blob ) {
     
     if ( ( typeof saveAs == 'function' ) && ( ! is_tweetdeck() ) ) {
         try {
-            saveAs( blob, filename );
+            window.saveAs( blob, filename );
         }
         catch ( error ) {
             //log_error( error );
@@ -4196,7 +4196,7 @@ function initialize( user_options ) {
             if ( 
                 ( ( ( active_element.classList.contains( 'tweet-box' ) ) || ( active_element.getAttribute( 'role' ) == 'textbox' ) || ( active_element.getAttribute( 'name' ) == 'tweet' ) ) && ( active_element.getAttribute( 'contenteditable' ) == 'true' ) ) ||
                 ( active_element.tagName == 'TEXTAREA' ) ||
-                ( ( active_element.tagName == 'INPUT' ) && ( active_element.getAttribute( 'type' ).toUpperCase() == 'TEXT' ) )
+                ( ( active_element.tagName == 'INPUT' ) && ( 0 <= [ 'TEXT', 'PASSWORD' ].indexOf( active_element.getAttribute( 'type' ).toUpperCase() ) ) )
             ) {
                 return false;
             }
