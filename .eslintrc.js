@@ -20,6 +20,7 @@ module.exports = {
         "global": "readonly",
         "Decimal": "readonly",
         "JSZip": "readonly",
+        "saveAs": "readonly",
         "GM_xmlhttpRequest": "readonly",
         "GM_setValue": "readonly",
         "GM_getValue": "readonly",

@@ -191,22 +191,39 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
             fetch( message.img_url_orig )
             .then( ( response ) => response.blob() )
             .then( ( blob ) => {
-                if ( typeof saveAs == 'function' ) {
-                    window.saveAs( blob, message.filename );
+                try {
+                    if ( typeof saveAs == 'function' ) {
+                        //window.saveAs( blob, message.filename ); // Firefoxでは saveAs は window 下に存在しない
+                        saveAs( blob, message.filename );
+                    }
+                    else {
+                        var link = d.createElement('a');
+                        
+                        link.href = URL.createObjectURL( blob );
+                        link.download = message.filename;
+                        d.documentElement.appendChild( link );
+                        link.click(); // TweetDeck だと、ダウンロードできない（ダウンロードが無効化されるイベントが設定されてしまう）=> saveAs() が有効ならばそちらを使用
+                        d.documentElement.removeChild( link );
+                    }
+                    sendResponse( {
+                        result : 'OK'
+                    } );
                 }
-                else {
-                    var link = d.createElement('a');
-                    
-                    link.href = URL.createObjectURL( blob );
-                    link.download = message.filename;
-                    d.documentElement.appendChild( link );
-                    link.click(); // TweetDeck だと、ダウンロードできない（ダウンロードが無効化されるイベントが設定されてしまう）=> saveAs() が有効ならばそちらを使用
-                    d.documentElement.removeChild( link );
+                catch( error ) {
+                    console.error( 'save image error:', error, message.img_url_orig, blob );
+                    sendResponse( {
+                        result : 'NG',
+                        message : 'save image error'
+                    } );
                 }
+            } )
+            .catch( ( error ) => {
+                console.error( 'fetch() error:', error, message.img_url_orig );
                 sendResponse( {
-                    result : 'OK'
+                    result : 'NG',
+                    message : 'fetch() error'
                 } );
-            } ) ;
+            } );
             break;
         
         case 'RELOAD_REQUEST' :

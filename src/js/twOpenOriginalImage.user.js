@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.12
+// @version         0.1.8.13
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -1090,7 +1090,8 @@ function save_blob( filename, blob ) {
     
     if ( ( typeof saveAs == 'function' ) && ( ! is_tweetdeck() ) ) {
         try {
-            window.saveAs( blob, filename );
+            //window.saveAs( blob, filename ); // Firefoxでは saveAs は window 下に存在しない
+            saveAs( blob, filename );
         }
         catch ( error ) {
             //log_error( error );
