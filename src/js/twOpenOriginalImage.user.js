@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.8.13
+// @version         0.1.8.14
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://mobile.twitter.com/*
@@ -3765,6 +3765,7 @@ function initialize( user_options ) {
                             if ( event.altKey || event.ctrlKey ) {
                                 // [Alt] / [option] キー押下時には、デフォルト動作を実施
                                 lock_event = true;
+                                event.preventDefault();
                                 img.click();
                                 return;
                             }
