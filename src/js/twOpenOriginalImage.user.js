@@ -1604,6 +1604,7 @@ function initialize( user_options ) {
     var add_open_button = ( function () {
         var button_container_classname = SCRIPT_NAME + 'Button',
             opened_name_map = {},
+            top_offset = 26,
             
             MouseClick = {
                 move_count : 0
@@ -1879,7 +1880,7 @@ function initialize( user_options ) {
             } )(),
             
             image_overlay = ( function () {
-                var top_offset = 26,
+                var //top_offset = 26,
                     image_overlay_image_container = ( function () {
                         var image_overlay_image_container = d.createElement( 'div' ),
                             image_overlay_image_container_style = image_overlay_image_container.style;
@@ -2731,16 +2732,52 @@ function initialize( user_options ) {
                 saved_body_marginRight = body_style.marginRight,
                 
                 event_list = [],
-                image_overlay_container_mouse_click = object_extender( MouseClick );
-            
+                image_overlay_container_mouse_click = object_extender( MouseClick ),
+                
+                on_wheel = ( event ) => {
+                    var flag_to_ignore = false,
+                        target_container = ( image_overlay_container_style.overflow == 'hidden' ) ? image_overlay_image_container : image_overlay_container,
+                        scroll_height = target_container.scrollHeight,
+                        scroll_top = target_container.scrollTop,
+                        container_rect = target_container.getBoundingClientRect();
+                    
+                    log_debug( '### on_wheel()', scroll_height, scroll_top, container_rect, event );
+                    
+                    if ( scroll_height <= container_rect.height ) {
+                        flag_to_ignore = true;
+                    }
+                    else {
+                        if ( event.deltaY < 0 ) {
+                            if ( scroll_top <= 0 ) {
+                                flag_to_ignore = true;
+                            }
+                        }
+                        else if ( 0 < event.deltaY ) {
+                            if ( scroll_height <= scroll_top + container_rect.height ) {
+                                flag_to_ignore = true;
+                            }
+                        }
+                    }
+                    
+                    if ( ! flag_to_ignore ) {
+                        return;
+                    }
+                    
+                    log_debug( '*** on_wheel(): event ignored', event );
+                    event.preventDefault();
+                    event.stopPropagation();
+                };
             
             function add_events() {
+                if ( is_twitter() ) {
+                    image_overlay_container.addEventListener( 'wheel', on_wheel, { passive: false } );
+                }
                 event_list.forEach( function ( event_item ) {
                     add_event( event_item.element,  event_item.name, event_item.func, true );
                 } );
                 
                 image_overlay_container_mouse_click.init( image_overlay_container, image_overlay_container ).start( close_image_overlay_container );
-            } // end of set_events()
+            } // end of add_events()
             
             
             function remove_events() {
@@ -2756,6 +2793,10 @@ function initialize( user_options ) {
                 to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) ).forEach( function ( image_link_container ) {
                     fire_event( image_link_container, 'remove-mouse-click-event' );
                 } );
+                
+                if ( is_twitter() ) {
+                    image_overlay_container.removeEventListener( 'wheel', on_wheel );
+                }
             } // end of remove_events()
             
             
@@ -2771,12 +2812,21 @@ function initialize( user_options ) {
                 image_overlay_header_style.display = 'none';
                 image_overlay_loading_style.display = 'none';
                 image_overlay_container_style.display = 'none';
-                body_style.marginRight = saved_body_marginRight;
-                body_style.overflowX = saved_body_overflowX;
-                body_style.overflowY = saved_body_overflowY;
+                
                 if ( is_tweetdeck() ) {
+                    body_style.marginRight = saved_body_marginRight;
+                    body_style.overflowX = saved_body_overflowX;
+                    body_style.overflowY = saved_body_overflowY;
                     html_style.overflowX = saved_html_overflowX;
                     html_style.overflowY = saved_html_overflowY;
+                }
+                else {
+                    /*
+                    //[2020.12] Twitter側の変更のためか、一番上にスクロールしてしまうようになってしまった
+                    //body_style.marginRight = saved_body_marginRight;
+                    //body_style.overflowX = saved_body_overflowX;
+                    //body_style.overflowY = saved_body_overflowY;
+                    */
                 }
                 
                 remove_events();
@@ -3266,10 +3316,18 @@ function initialize( user_options ) {
             if ( is_tweetdeck() ) {
                 html_style.overflowX = 'hidden';
                 html_style.overflowY = 'hidden';
+                body_style.overflowX = 'hidden';
+                body_style.overflowY = 'hidden';
+                body_style.marginRight = 0;
             }
-            body_style.overflowX = 'hidden';
-            body_style.overflowY = 'hidden';
-            body_style.marginRight = 0;
+            else {
+                /*
+                //[2020.12] Twitter側の変更のためか、一番上にスクロールしてしまうようになってしまった
+                //body_style.overflowX = 'hidden';
+                //body_style.overflowY = 'hidden';
+                //body_style.marginRight = 0;
+                */
+            }
             image_overlay_header_style.display = 'block';
             image_overlay_loading_style.display = 'block';
             image_overlay_container_style.display = 'block';
