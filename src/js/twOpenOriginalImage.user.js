@@ -1252,7 +1252,7 @@ function download_zip( tweet_info_json ) {
                     var img_info = img_info_dict[ img_url ],
                         img_extension = get_img_extension( img_info.filename ),
                         //img_filename = img_info.filename;
-                        img_filename = filename_prefix + '-img' + ( index + 1 ) + '.' + img_extension;
+                        img_filename = filename_prefix + '_' + ( index + 1 ) + '.' + img_extension;
 
                     if ( ! img_extension ) {
                         return;
