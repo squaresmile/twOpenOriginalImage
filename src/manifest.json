@@ -14,13 +14,13 @@
     }
 ,   "content_scripts" : [
         {
-            "matches" : [ "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*", "*://mobile.twitter.com/*" ]
+            "matches" : [ "*://x.com/*", "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*", "*://mobile.twitter.com/*" ]
         ,   "js" : [ "js/jszip.min.js", "js/FileSaver.min.js", "js/init.js" ]
         ,   "run_at" : "document_start"
         ,   "all_frames" : true
         }
     ,   {
-            "matches" : [ "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*", "*://mobile.twitter.com/*" ]
+            "matches" : [ "*://x.com/*", "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*", "*://mobile.twitter.com/*" ]
         ,   "js" : [ "js/twOpenOriginalImage.user.js" ]
         ,   "run_at" : "document_end"
         ,   "all_frames" : true

@@ -142,10 +142,11 @@ var DEBUG = false,
     }, // end of make_is_url_function()
 
     is_twitter = make_is_url_function( /^https?:\/\/(?:mobile\.)?twitter\.com\// ),
+    is_x = make_is_url_function( /^https?:\/\/(?:mobile\.)?x\.com\// ),
     is_tweetdeck = make_is_url_function( /^https?:\/\/tweetdeck\.twitter\.com\// ),
     is_media_url = make_is_url_function( /^https?:\/\/pbs\.twimg\.com\/media\// ),
     is_react_twitter = ( () => {
-        var is_react = is_twitter() && ( !! d.querySelector( 'div#react-root' ) );
+        var is_react = (is_twitter() || is_x()) && ( !! d.querySelector( 'div#react-root' ) );
         return () => is_react;
     } )(),
 
@@ -755,7 +756,10 @@ function get_img_url_orig( img_url ) {
 
 
 function get_filename_prefix( tweet_url ) {
-    return tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
+    if (tweet_url.includes("twitter")) {
+        return tweet_url.replace( /^https?:\/\/(?:mobile\.)?twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
+    }
+    return tweet_url.replace( /^https?:\/\/(?:mobile\.)?x\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '@$1_$2' );
 } // end of get_filename_prefix()
 
 
